@@ -16,8 +16,20 @@ import (
 var isWorking bool
 
 type Post struct {
-	html string
 	requestId string
+	date string
+	sourceDistrict string
+	sourceCity string
+	destinationDistrict string
+	destinationCity string
+	distance string
+	truck string
+	weight string
+	cube string
+	price string
+	productType string
+	productDescription string
+	productComment string
 	dateup int64
 }
 
@@ -80,7 +92,7 @@ func main() {
 						go startPostScanning(foundPostsCh, pageUrl, lastProcessedTime)
 						go startBotPublisher(foundPostsCh, bot, update.Message.Chat.ID)
 
-						msg.Text = "This damn job again!((( Start scanning..."
+						msg.Text = "Crap! Job again!((( Start scanning..."
 					}
 				default:
 					msg.Text = "If you're so stupid, it's better to ask someone smarter. For example me /help"
@@ -93,6 +105,7 @@ func main() {
 func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
 	intervalCh := time.Tick(55 * time.Second)
+
 	for _ = range intervalCh {
 		if isWorking != true {
 			return
@@ -102,21 +115,34 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 			StartURLs: []string{pageUrl},
 			ParseFunc: func(g *geziyor.Geziyor, r *client.Response) {
 				r.HTMLDoc.Find("table#msTableWithRequests tbody#request_list_main > tr[dateup]").Each(func(i int, s *goquery.Selection) {
-					el := s.Find(".star_and_truck div.pt_1 img")
-					if len(el.Nodes) > 0 {
+					deleted := len(s.Find("div.klushka.veshka_deleted").Nodes)
+					star := len(s.Find(".star_and_truck div.pt_1 img").Nodes)
+					if star > 0 && deleted == 0{
 						dateupStr, _ := s.Attr("dateup")
 						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
 							if dateup > lastProcessedTime {
-								row1 := s.Find("table tr:nth-child(1)").Text()
-								row2 := s.Find("table tr:nth-child(2)").Text()
-								html := fmt.Sprintf("%s\n%s", row1, row2)
-								requestId, _ :=  s.Attr("id")
+								newPost := Post{}
+								newPost.dateup = dateup
+								newPost.requestId, _ = s.Find("td.request_level_ms.is_first").Attr("request_id")
+								newPost.date = s.Find("table tr:nth-child(1) td.multi_date").Text()
+								newPost.sourceDistrict, _ = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
+								newPost.sourceCity = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text()
+								newPost.destinationDistrict, _ = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
+								newPost.destinationCity = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text()
+								newPost.distance = s.Find("table tr:nth-child(1) td.m_text a.distance_link").Text()
+								newPost.truck = s.Find("table tr:nth-child(1) td.truck b").Text()
+								newPost.weight = s.Find("table tr:nth-child(1) td.weight b").Text()
+								newPost.cube = s.Find("table tr:nth-child(1) td.cube b").Text()
+								newPost.price = s.Find("table tr:nth-child(1) td.price").Text()
+								newPost.productType = s.Find("table tr:nth-child(2) td:nth-child(2) b").Text()
+								newPost.productDescription = s.Find("table tr:nth-child(2) td:nth-child(2) span").Text()
+								newPost.productComment = s.Find("table tr:nth-child(2) td.m_comment").Text()
 
 								if maxDateup < dateup {
 									maxDateup = dateup
 								}
 
-								foundPostsCh <-Post{html, requestId, dateup}
+								foundPostsCh <-newPost
 							}
 						}
 					}
@@ -134,9 +160,37 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			return
 		}
 
-		msg := tgbotapi.NewMessage(chatId, newPost.html)
+		formattedMsg := fmt.Sprintf(
+			"RequestId#: %s (timestamp: %d)\n" +
+			"Date: %s\n" +
+			"Price: %s\n" +
+			"Src/Dst: %s %s -> %s %s\n" +
+			"Distance: %s\n" +
+			"Truck: %s; Weight: %s; Cube: %s\n" +
+			"ProductType: %s\n" +
+			"ProductDescription: %s\n" +
+			"ProductComment: %s\n",
+			newPost.requestId,
+			newPost.dateup,
+			newPost.date,
+			newPost.price,
+			newPost.sourceDistrict,
+			newPost.sourceCity,
+			newPost.destinationDistrict,
+			newPost.destinationCity,
+			newPost.distance,
+			newPost.truck,
+			newPost.weight,
+			newPost.cube,
+			newPost.productType,
+			newPost.productDescription,
+			newPost.productComment,
+		)
+
+		msg := tgbotapi.NewMessage(chatId, formattedMsg)
 		bot.Send(msg)
 		log.Printf("New post with requestId %s and dateup %d", newPost.requestId, newPost.dateup)
+		log.Printf("Struct: %v", newPost)
 	}
 }
 
