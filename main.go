@@ -20,6 +20,7 @@ var isWorking bool
 type Post struct {
 	requestId string
 	date string
+	detailsPageUrl string
 	sourceDistrict string
 	sourceCity string
 	destinationDistrict string
@@ -104,9 +105,10 @@ func main() {
 	}
 }
 
+// Searching new posts and send one to publisher method
 func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
-	intervalCh := time.Tick(55 * time.Second)
+	intervalCh := time.Tick(60 * time.Second)
 
 	for _ = range intervalCh {
 		if isWorking != true {
@@ -126,19 +128,20 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 								newPost := Post{}
 								newPost.dateup = dateup
 								newPost.requestId, _ = s.Find("td.request_level_ms").Attr("request_id")
-								newPost.date = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
 								newPost.sourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
-								newPost.sourceCity = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
 								newPost.destinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
-								newPost.destinationCity = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
-								newPost.distance = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
-								newPost.truck = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
-								newPost.weight = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
-								newPost.cube = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
-								newPost.price = strip_tags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
-								newPost.productType = strip_tags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
-								newPost.productDescription = strip_tags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
-								newPost.productComment = strip_tags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+								newPost.detailsPageUrl, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance").Attr("href")
+								newPost.date = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
+								newPost.sourceCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
+								newPost.destinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
+								newPost.distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
+								newPost.truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
+								newPost.weight = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
+								newPost.cube = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
+								newPost.price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
+								newPost.productType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
+								newPost.productDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
+								newPost.productComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
 
 								if maxDateup < dateup {
 									maxDateup = dateup
@@ -156,6 +159,7 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 	}
 }
 
+// Send message with new post to telegram
 func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId int64)  {
 	for newPost := range foundPostsCh {
 		if isWorking != true {
@@ -163,30 +167,35 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 		}
 
 		formattedMsg := fmt.Sprintf(
-			"*RequestId#*: %s _(timestamp: %d)_\n" +
-			"*Date*: %s\n" +
-			"*Price*: %s\n" +
-			"*Src/Dst*: %s %s -> %s %s\n" +
-			"*Distance*: %s\n" +
-			"*Truck*: %s; *Weight*: %s; *Cube*: %s\n" +
-			"*ProductType*: %s\n" +
-			"*ProductDescription*: %s\n" +
-			"*ProductComment*: %s\n",
+			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
+			"\n" +
+			"%s *%s*(%s) -> *%s*(%s) - %s\n" +
+			"*%s* %s\n" +
+			"*%s* *%s* *%s*\n" +
+			"*%s*\n" +
+			"Price: %s\n" +
+			"----------------------------------\n",
 			newPost.requestId,
 			newPost.dateup,
+			newPost.detailsPageUrl,
+			// The new row
 			newPost.date,
-			newPost.price,
-			newPost.sourceDistrict,
 			newPost.sourceCity,
-			newPost.destinationDistrict,
+			newPost.sourceDistrict,
 			newPost.destinationCity,
+			newPost.destinationDistrict,
 			newPost.distance,
-			newPost.truck,
-			newPost.weight,
-			newPost.cube,
+			// The new row
 			newPost.productType,
 			newPost.productDescription,
+			// The new row
+			newPost.weight,
+			newPost.cube,
+			newPost.truck,
+			// The new row
 			newPost.productComment,
+			// The new row
+			newPost.price,
 		)
 
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
@@ -213,7 +222,8 @@ func init() {
 	}
 }
 
-func strip_tags(content string) string {
+// strip tags and spaces from HTML
+func stripTags(content string) string {
 	plainTex := content
 	stripTagsReg := regexp.MustCompile(`<(.|\n)*?>`)
 	fixSpaces := regexp.MustCompile(`&nbsp;`)
