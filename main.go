@@ -167,18 +167,14 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 		}
 
 		formattedMsg := fmt.Sprintf(
-			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"\n" +
 			"%s *%s*(%s) -> *%s*(%s) - %s\n" +
 			"*%s* %s\n" +
 			"*%s* *%s* *%s*\n" +
 			"*%s*\n" +
 			"Price: %s\n" +
+			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"----------------------------------\n",
-			newPost.requestId,
-			newPost.dateup,
-			newPost.detailsPageUrl,
-			// The new row
 			newPost.date,
 			newPost.sourceCity,
 			newPost.sourceDistrict,
@@ -196,6 +192,10 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			newPost.productComment,
 			// The new row
 			newPost.price,
+			// The new row
+			newPost.requestId,
+			newPost.dateup,
+			newPost.detailsPageUrl,
 		)
 
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
