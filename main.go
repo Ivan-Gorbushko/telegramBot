@@ -9,7 +9,9 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -123,20 +125,20 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 							if dateup > lastProcessedTime {
 								newPost := Post{}
 								newPost.dateup = dateup
-								newPost.requestId, _ = s.Find("td.request_level_ms.is_first").Attr("request_id")
-								newPost.date = s.Find("table tr:nth-child(1) td.multi_date").Text()
+								newPost.requestId, _ = s.Find("td.request_level_ms").Attr("request_id")
+								newPost.date = strip_tags(s.Find("table tr:nth-child(1) td.multi_date").Text())
 								newPost.sourceDistrict, _ = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
-								newPost.sourceCity = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text()
+								newPost.sourceCity = strip_tags(s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
 								newPost.destinationDistrict, _ = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
-								newPost.destinationCity = s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text()
-								newPost.distance = s.Find("table tr:nth-child(1) td.m_text a.distance_link").Text()
-								newPost.truck = s.Find("table tr:nth-child(1) td.truck b").Text()
-								newPost.weight = s.Find("table tr:nth-child(1) td.weight b").Text()
-								newPost.cube = s.Find("table tr:nth-child(1) td.cube b").Text()
-								newPost.price = s.Find("table tr:nth-child(1) td.price").Text()
-								newPost.productType = s.Find("table tr:nth-child(2) td:nth-child(2) b").Text()
-								newPost.productDescription = s.Find("table tr:nth-child(2) td:nth-child(2) span").Text()
-								newPost.productComment = s.Find("table tr:nth-child(2) td.m_comment").Text()
+								newPost.destinationCity = strip_tags(s.Find("table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
+								newPost.distance = strip_tags(s.Find("table tr:nth-child(1) td.m_text a.distance_link").Text())
+								newPost.truck = strip_tags(s.Find("table tr:nth-child(1) td.truck b").Text())
+								newPost.weight = strip_tags(s.Find("table tr:nth-child(1) td.weight b").Text())
+								newPost.cube = strip_tags(s.Find("table tr:nth-child(1) td.cube b").Text())
+								newPost.price = strip_tags(s.Find("table tr:nth-child(1) td.price").Text())
+								newPost.productType = strip_tags(s.Find("table tr:nth-child(2) td:nth-child(2) b").Text())
+								newPost.productDescription = strip_tags(s.Find("table tr:nth-child(2) td:nth-child(2) span").Text())
+								newPost.productComment = strip_tags(s.Find("table tr:nth-child(2) td.m_comment").Text())
 
 								if maxDateup < dateup {
 									maxDateup = dateup
@@ -161,15 +163,15 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 		}
 
 		formattedMsg := fmt.Sprintf(
-			"RequestId#: %s (timestamp: %d)\n" +
-			"Date: %s\n" +
-			"Price: %s\n" +
-			"Src/Dst: %s %s -> %s %s\n" +
-			"Distance: %s\n" +
-			"Truck: %s; Weight: %s; Cube: %s\n" +
-			"ProductType: %s\n" +
-			"ProductDescription: %s\n" +
-			"ProductComment: %s\n",
+			"*RequestId#*: %s _(timestamp: %d)_\n" +
+			"*Date*: %s\n" +
+			"*Price*: %s\n" +
+			"*Src/Dst*: %s %s -> %s %s\n" +
+			"*Distance*: %s\n" +
+			"*Truck*: %s; Weight: %s; Cube: %s\n" +
+			"*ProductType*: %s\n" +
+			"*ProductDescription*: %s\n" +
+			"*ProductComment*: %s\n",
 			newPost.requestId,
 			newPost.dateup,
 			newPost.date,
@@ -188,6 +190,7 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 		)
 
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
+		msg.ParseMode = "markdown"
 		bot.Send(msg)
 		log.Printf("New post with requestId %s and dateup %d", newPost.requestId, newPost.dateup)
 		log.Printf("Struct: %v", newPost)
@@ -209,6 +212,16 @@ func init() {
 	if err := godotenv.Load(); err != nil {
 		log.Print("No .env file found")
 	}
+}
+
+func strip_tags(content string) string {
+	plainTex := content
+	stripTagsReg := regexp.MustCompile(`<(.|\n)*?>`)
+	fixSpaces := regexp.MustCompile(`&nbsp;`)
+	plainTex = stripTagsReg.ReplaceAllString(plainTex,"")
+	plainTex = fixSpaces.ReplaceAllString(plainTex," ")
+	plainTex = strings.Join(strings.Fields(plainTex), " ")
+	return plainTex
 }
 
 // Todo: this code need to add when I want to use pager
