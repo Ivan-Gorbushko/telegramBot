@@ -8,6 +8,7 @@ import (
 	"github.com/geziyor/geziyor/client"
 	"github.com/joho/godotenv"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -36,10 +37,20 @@ type Post struct {
 	dateup int64
 }
 
+func MainHandler(resp http.ResponseWriter, _ *http.Request) {
+	resp.Write([]byte("Hi there! I'm DndSpellsBot!"))
+}
+
 func main() {
 	isWorking = false
+	token := getEnvData("bot_token", "")
+	env := getEnvData("env", "dev")
+	var updates tgbotapi.UpdatesChannel
 
-	bot, err := tgbotapi.NewBotAPI(getEnvData("bot_token", ""))
+	http.HandleFunc("/", MainHandler)
+	go http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+
+	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -47,10 +58,17 @@ func main() {
 	bot.Debug = false
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	var ucfg = tgbotapi.NewUpdate(0)
-	ucfg.Timeout = 60
-
-	updates, err := bot.GetUpdatesChan(ucfg)
+	if env == "prod" {
+		webHook := "https://api.telegram.org/bot%s/setWebhook?url=https://cargo-telegram-bot.herokuapp.com/%s"
+		webhookConfig := tgbotapi.NewWebhook(fmt.Sprintf(webHook, token, token))
+		_, _ = bot.SetWebhook(webhookConfig)
+		updates = bot.ListenForWebhook("/" + bot.Token)
+	} else {
+		_, _ = bot.RemoveWebhook()
+		ucfg := tgbotapi.NewUpdate(0)
+		ucfg.Timeout = 60
+		updates, _ = bot.GetUpdatesChan(ucfg)
+	}
 
 	for update := range updates {
 		if update.Message == nil { // ignore any non-Message Updates
