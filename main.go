@@ -64,7 +64,7 @@ func main() {
 		_, _ = bot.SetWebhook(webhookConfig)
 		updates = bot.ListenForWebhook("/" + bot.Token)
 	} else {
-		_, _ = bot.RemoveWebhook()
+		_, _ = bot.SetWebhook(tgbotapi.NewWebhook(""))
 		ucfg := tgbotapi.NewUpdate(0)
 		ucfg.Timeout = 60
 		updates, _ = bot.GetUpdatesChan(ucfg)
