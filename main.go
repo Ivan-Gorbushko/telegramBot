@@ -38,7 +38,7 @@ type Post struct {
 }
 
 func MainHandler(resp http.ResponseWriter, _ *http.Request) {
-	resp.Write([]byte("Hi there! I'm DndSpellsBot!"))
+	resp.Write([]byte("Hi there! I'm Telegram CargoBot"))
 }
 
 func main() {
@@ -118,6 +118,7 @@ func main() {
 				default:
 					msg.Text = "If you're so stupid, it's better to ask someone smarter. For example me /help"
 			}
+			log.Printf("The %s command was executed successful", update.Message.Command())
 			bot.Send(msg)
 		}
 	}
