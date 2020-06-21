@@ -33,6 +33,7 @@ type Post struct {
 	distance string
 	truck string
 	weight string
+	weightTn string
 	cube string
 	price string
 	productType string
@@ -206,22 +207,30 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 								newPost.productDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
 								newPost.productComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
 
-								re := regexp.MustCompile(`(\d{2})\.(\d{2})`)
-								res := re.FindAllSubmatch([]byte(newPost.date), -1)
+								dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
+								dateRes := dateReg.FindAllSubmatch([]byte(newPost.date), -1)
 
-								if len(res)-1 >= 0 {
-									dayFrom := string(res[0][1])
-									monthFrom := string(res[0][2])
+								if len(dateRes)-1 >= 0 {
+									dayFrom := string(dateRes[0][1])
+									monthFrom := string(dateRes[0][2])
 									newPost.dateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
 									// by default
 									newPost.dateTo = newPost.dateFrom
 								}
 
-								if len(res)-1 >= 1 {
-									dayTo := string(res[1][1])
-									monthTo := string(res[1][2])
+								if len(dateRes)-1 >= 1 {
+									dayTo := string(dateRes[1][1])
+									monthTo := string(dateRes[1][2])
 									newPost.dateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
 								}
+
+								weightReg := regexp.MustCompile(`(\d*[,]{0,1}\d*) т`)
+								weightRes := weightReg.FindAllSubmatch([]byte(newPost.weight), -1)
+
+								if len(dateRes)-1 >= 0 {
+									newPost.weightTn = strings.ReplaceAll(string(weightRes[0][1]), ",", ".")
+								}
+
 
 								if maxDateup < dateup {
 									maxDateup = dateup

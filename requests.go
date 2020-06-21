@@ -125,7 +125,7 @@ func postCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 
 	// Prepare Query Parameters
 	params := url.Values{}
-	params.Add("sizeMassFrom", post.weight)
+	params.Add("sizeMassFrom", post.weightTn)
 	params.Add("bodyGroupId", "2")
 	params.Add("dateFrom", post.dateFrom) // "2020-11-27"
 	params.Add("dateTo", post.dateTo) // "2020-11-27"
