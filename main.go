@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -9,10 +8,8 @@ import (
 	"github.com/geziyor/geziyor"
 	"github.com/geziyor/geziyor/client"
 	"github.com/joho/godotenv"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -26,6 +23,8 @@ var Posts map[string]Post
 type Post struct {
 	requestId string
 	date string
+	dateFrom string
+	dateTo string
 	detailsPageUrl string
 	sourceDistrict string
 	sourceCity string
@@ -60,12 +59,14 @@ func init() {
 	}
 }
 
+var Env string
+
 func main() {
 	// Todo: move store of all Posts to DB or another storage
 	Posts = map[string]Post{}
 	isWorking = false 									// Scanning status flag
 	token := getEnvData("bot_token", "")  // Secret bot api token
-	env := getEnvData("env", "dev") 		// Environment flag (for example: dev|prod)
+	Env = getEnvData("env", "dev") 		// Environment flag (for example: dev|prod)
 	var updates tgbotapi.UpdatesChannel 				// Channel to get updates from bot
 
 	// This need to create start page on Heroku Cloud (There was created simple http server)
@@ -81,7 +82,7 @@ func main() {
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	// Setup of current environment
-	if env == "prod" {
+	if Env == "prod" {
 		webHook := "https://api.telegram.org/bot%s/setWebhook?url=https://cargo-telegram-bot.herokuapp.com/%s"
 		webhookConfig := tgbotapi.NewWebhook(fmt.Sprintf(webHook, token, token))
 		_, _ = bot.SetWebhook(webhookConfig)
@@ -140,7 +141,10 @@ func main() {
 						msg.Text = "I'm is already scanning! Don't touch me bad boy!"
 					} else {
 						now := time.Now()
-						lastProcessedTime := now.Unix() - 60 * 60 * 3
+						lastProcessedTime := now.Unix()
+						if Env == "dev" {
+							lastProcessedTime -= 60 * 60 * 8
+						}
 						isWorking = true
 						foundPostsCh := make(chan Post)
 						pageUrl := "https://della.ua/search/a204bd204eflolh0ilk0m1.html"
@@ -176,7 +180,9 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 				r.HTMLDoc.Find("table#msTableWithRequests tbody#request_list_main > tr[dateup]").Each(func(i int, s *goquery.Selection) {
 					deleted := len(s.Find("div.klushka.veshka_deleted").Nodes)
 					star := len(s.Find(".star_and_truck div.pt_1 img").Nodes)
-					star = 1
+					if Env == "dev" {
+						star = 1
+					}
 					if star > 0 && deleted == 0 {
 						dateupStr, _ := s.Attr("dateup")
 						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
@@ -199,6 +205,23 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 								newPost.productType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
 								newPost.productDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
 								newPost.productComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+
+								re := regexp.MustCompile(`(\d{2})\.(\d{2})`)
+								res := re.FindAllSubmatch([]byte(newPost.date), -1)
+
+								if len(res)-1 >= 0 {
+									dayFrom := string(res[0][1])
+									monthFrom := string(res[0][2])
+									newPost.dateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
+									// by default
+									newPost.dateTo = newPost.dateFrom
+								}
+
+								if len(res)-1 >= 1 {
+									dayTo := string(res[1][1])
+									monthTo := string(res[1][2])
+									newPost.dateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
+								}
 
 								if maxDateup < dateup {
 									maxDateup = dateup
@@ -260,9 +283,8 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 
 		// Prepare command
 		command := Command{"__create_post", newPost.requestId}
-		log.Println(fmt.Sprintf("%v", command))
 		serializedCommand, err := json.Marshal(command)
-		log.Println(fmt.Sprintf("%s", string(serializedCommand)))
+		//log.Println(fmt.Sprintf("%s", string(serializedCommand)))
 		if err != nil {
 			panic (err)
 		}
@@ -279,7 +301,7 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 
 		Posts[newPost.requestId] = newPost
 		bot.Send(msg)
-		//log.Printf("New post: %#v", newPost)
+		log.Printf("New post: %#v", newPost)
 	}
 }
 
@@ -314,139 +336,39 @@ func (command Command) runCommand() interface{} {
 
 // Make request to lardi-trans.com to create new post
 func __createPost(requestId string) interface{} {
-	type WaypointListSource struct {
-		Address string `json:"address"`
-		CountrySign string `json:"countrySign"`
-		AreaId string `json:"areaId"`
-		TownId string `json:"townId"`
+	country := "UA"
+	postData := Posts[requestId]
+
+	sourceTownName := postData.sourceCity
+	sourceAutocompleteTowns := getAutocompleteTowns(sourceTownName)
+	sourceAutocompleteTown := sourceAutocompleteTowns[0]
+
+	sourceTowns := getTowns(sourceAutocompleteTown)
+	sourceTown := sourceTowns[0]
+
+	waypointListSource := WaypointListSource{
+		CountrySign: country,
+		TownId: strconv.Itoa(sourceTown.Id),
+		AreaId: strconv.Itoa(sourceTown.AreaId),
 	}
 
-	type WaypointListTarget struct {
-		Address string `json:"address"`
-		CountrySign string `json:"countrySign"`
-		AreaId string `json:"areaId"`
-		TownId string `json:"townId"`
+	targetTownName := postData.destinationCity
+	targetAutocompleteTowns := getAutocompleteTowns(targetTownName)
+	targetAutocompleteTown := targetAutocompleteTowns[0]
+
+	targetTowns := getTowns(targetAutocompleteTown)
+	targetTown := targetTowns[0]
+
+	waypointListTarget := WaypointListTarget{
+		CountrySign: country,
+		TownId: strconv.Itoa(targetTown.Id),
+		AreaId: strconv.Itoa(targetTown.AreaId),
 	}
 
-	type CreatePostRequest struct {
-		WaypointListSource []WaypointListSource `json:"waypointListSource"`
-		WaypointListTarget []WaypointListTarget `json:"waypointListTarget"`
-	}
-
-	// Settings
-	baseUrl := getEnvData("lardi_api_url", "")
-	endpointUrl := fmt.Sprintf("%s/proposals/my/add/cargo", baseUrl)
-	lardiSecretKey := getEnvData("lardi_secret_key", "")
-
-	// Prepare Query Parameters
-	params := url.Values{}
-	params.Add("sizeMassFrom", "24")
-	params.Add("bodyGroupId", "2")
-	params.Add("dateFrom","2020-11-27")
-	queryValue := params.Encode()
-
-	// Prepare Body Parameters
-	requestBody := CreatePostRequest{
-		WaypointListSource: []WaypointListSource{
-			{
-				Address:     "уточнение адреса",
-				CountrySign: "UA",
-				AreaId:      "23",
-				TownId:      "137",
-			},
-		},
-		WaypointListTarget: []WaypointListTarget{
-			{
-				Address:     "уточнение адреса",
-				CountrySign: "UA",
-				AreaId:      "34",
-				TownId:      "69",
-			},
-		},
-	}
-	jsonValue, _ := json.MarshalIndent(requestBody, "", " ")
-
-	// Prepare request object
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/?%s", endpointUrl, queryValue), bytes.NewBuffer(jsonValue))
-
-	// Prepare Headers
-	req.Header.Set("Authorization", lardiSecretKey)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	// Create client and make request to REST API
-	clientRestApi := &http.Client{}
-	resp, err := clientRestApi.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	// Logger result
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	fmt.Println("response Body:", string(body))
+	body := postCargo(waypointListSource, waypointListTarget, postData)
 
 	return body
-
-	/*
-	curl -X POST -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: 3WQ1EQ465C4005000130" \
-	"https://api.lardi-trans.com/v2/proposals/my/add/cargo?\
-	dateFrom=2020-11-27\
-	&dateTo=2020-11-30\
-	&contentId=18\
-	&bodyGroupId=2\
-	&bodyTypeId=63\
-	&loadTypes=24,25\
-	&unloadTypes=26,27\
-	&adr=3\
-	&cmr=true\
-	&cmrInsurance=true\
-	&groupage=true\
-	&t1=true\
-	&tir=true\
-	&lorryAmount=2\
-	&note=some%20useful%20note\
-	&paymentPrice=1000\
-	&paymentCurrencyId=2\
-	&paymentUnitId=2\
-	&paymentTypeId=8\
-	&paymentMomentId=4\
-	&paymentPrepay=10\
-	&paymentDelay=5\
-	&paymentVat=true\
-	&medicalRecords=true\
-	&customsControl=true\
-	&sizeMassFrom=24\
-	&sizeMassTo=36\
-	&sizeVolumeFrom=30\
-	&sizeVolumeTo=40\
-	&sizeLength=10.1\
-	&sizeWidth=2.5\
-	&sizeHeight=3\
-	" -d '{
-	    "waypointListSource": [
-	        {
-	            "address": "уточнение адреса",
-	            "countrySign": "UA",
-	            "areaId": 23,
-	            "townId": 137
-	        }
-	    ],
-	    "waypointListTarget": [
-	        {
-	            "address": "уточнение адреса",
-	            "countrySign": "UA",
-	            "areaId": 34,
-	            "townId": 69
-	        }
-	    ]
-	}'
-	 */
 }
-
-
 
 // Todo: this code need to add when I want to use pager
 //if href, ok := r.HTMLDoc.Find("li.next > a").Attr("href"); ok {
