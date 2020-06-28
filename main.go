@@ -2,12 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"context"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/Syfaro/telegram-bot-api"
 	"github.com/geziyor/geziyor"
 	"github.com/geziyor/geziyor/client"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"os"
@@ -42,16 +47,6 @@ type Post struct {
 	Dateup             int64  `bson:"dateup"`
 }
 
-type Command struct {
-	Method string
-	Arg string
-}
-
-// Register all inline keyboard commands
-var RegisteredCommands = map[string]interface{}{
-	"__create_post": __createPost,
-}
-
 // init is invoked before main()
 func init() {
 	// loads values from .env into the system
@@ -62,13 +57,24 @@ func init() {
 
 var Env string
 
+var Mongodb *mongo.Client
+
+type BotCommand struct {
+	Method string
+	Arg string
+}
+
+// Register all inline keyboard commands
+var RegisteredCommands = map[string]interface{}{
+	"__create_post": __createPost,
+}
+
 func main() {
-	// Todo: move store of all Posts to DB or another storage
-	Posts = map[string]Post{}
-	isWorking = false 									// Scanning status flag
-	token := getEnvData("bot_token", "")  // Secret bot api token
-	Env = getEnvData("env", "dev") 		// Environment flag (for example: dev|prod)
-	var updates tgbotapi.UpdatesChannel 				// Channel to get updates from bot
+	isWorking = false
+	token := getEnvData("bot_token", "")
+	Env := getEnvData("env", "dev")
+	mongodbUri := getEnvData("mongodb_uri", "mongodb://localhost:27017")
+	var updates tgbotapi.UpdatesChannel
 
 	// This need to create start page on Heroku Cloud (There was created simple http server)
 	http.HandleFunc("/", MainHandler)
@@ -98,7 +104,7 @@ func main() {
 	for update := range updates {
 		// Inline keyboard handler
 		if update.CallbackQuery != nil {
-			var command Command
+			var command BotCommand
 			err := json.Unmarshal([]byte(update.CallbackQuery.Data), &command)
 			if err != nil {
 				log.Println(err)
@@ -119,11 +125,13 @@ func main() {
 				case "stop":
 					if isWorking {
 						isWorking = false
+						_ = Mongodb.Disconnect(context.TODO())
 						msg.Text = "Fuh! Is it finally over..."
 					} else {
 						msg.Text = "You are silly I already don't work. And don't even think about running me!"
 					}
 				case "exit":
+					_ = Mongodb.Disconnect(context.TODO())
 					msg.Text = "Noooo you killed me!!! Fucking bastard"
 					bot.Send(msg)
 					return
@@ -141,6 +149,7 @@ func main() {
 					if isWorking {
 						msg.Text = "I'm is already scanning! Don't touch me bad boy!"
 					} else {
+						Mongodb, _ = mongo.Connect(context.TODO(), options.Client().ApplyURI(mongodbUri))
 						now := time.Now()
 						lastProcessedTime := now.Unix()
 						if Env == "dev" {
@@ -168,7 +177,8 @@ func main() {
 // Searching new posts and send one to publisher method
 func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
-	intervalCh := time.Tick(5 * time.Second)
+	scanTimeout, _ := strconv.Atoi(getEnvData("scan_timeout", "60"))
+	intervalCh := time.Tick(time.Duration(scanTimeout) * time.Second)
 
 	for _ = range intervalCh {
 		if isWorking != true {
@@ -236,7 +246,24 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 									maxDateup = dateup
 								}
 
-								foundPostsCh <-newPost
+								filter := bson.M{ "$or": []bson.M{
+									bson.M{
+										"requestId": newPost.RequestId,
+									},
+									bson.M{
+										"weightTn": newPost.WeightTn,
+										"sourceCity": newPost.SourceCity,
+										"destinationCity": newPost.DestinationCity,
+										"dateup": bson.M{"$gt": newPost.Dateup},
+									},
+								}}
+								collection := Mongodb.Database("cargodb").Collection("posts")
+								count, _ := collection.CountDocuments(context.TODO(), filter)
+								if count == 0 {
+									foundPostsCh <-newPost
+								} else {
+									log.Printf("For %s was found %d copies. There was ignored", newPost.RequestId, count)
+								}
 							}
 						}
 					}
@@ -254,6 +281,14 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 		if isWorking != true {
 			return
 		}
+
+		collection := Mongodb.Database("cargodb").Collection("posts")
+		res, err := collection.InsertOne(context.TODO(), newPost)
+		if err != nil {
+			log.Panic(err)
+		}
+		id := res.InsertedID.(primitive.ObjectID)
+		log.Printf("New post was created in mongodb posts: id %s", id.String())
 
 		// Todo: Need to update. Try to find and use some template to create and format msg
 		formattedMsg := fmt.Sprintf(
@@ -291,7 +326,7 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
 
 		// Prepare command
-		command := Command{"__create_post", newPost.RequestId}
+		command := BotCommand{"__create_post", newPost.RequestId}
 		serializedCommand, err := json.Marshal(command)
 		//log.Println(fmt.Sprintf("%s", string(serializedCommand)))
 		if err != nil {
@@ -339,7 +374,7 @@ func MainHandler(resp http.ResponseWriter, _ *http.Request) {
 	resp.Write([]byte("Hi there! I'm Telegram CargoBot on Heroku"))
 }
 
-func (command Command) runCommand() interface{} {
+func (command BotCommand) runCommand() interface{} {
 	return RegisteredCommands[command.Method].(func(string) interface{})(command.Arg)
 }
 
