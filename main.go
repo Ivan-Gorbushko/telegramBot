@@ -215,7 +215,7 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 										"weightTn": newPost.WeightTn,
 										"sourceCity": newPost.SourceCity,
 										"destinationCity": newPost.DestinationCity,
-										"dateup": bson.M{"$gt": newPost.Dateup},
+										"dateup": bson.M{"$gt": newPost.Dateup - 16 * 60 * 60},
 									},
 								}}
 								collection := Mongodb.Database("cargodb").Collection("posts")
