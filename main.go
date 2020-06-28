@@ -21,25 +21,25 @@ var isWorking bool
 var Posts map[string]Post
 
 type Post struct {
-	requestId string
-	date string
-	dateFrom string
-	dateTo string
-	detailsPageUrl string
-	sourceDistrict string
-	sourceCity string
-	destinationDistrict string
-	destinationCity string
-	distance string
-	truck string
-	weight string
-	weightTn string
-	cube string
-	price string
-	productType string
-	productDescription string
-	productComment string
-	dateup int64
+	RequestId           string `bson:"requestId"`
+	Date                string `bson:"date"`
+	DateFrom            string `bson:"dateFrom"`
+	DateTo              string `bson:"dateTo"`
+	DetailsPageUrl      string `bson:"detailsPageUrl"`
+	SourceDistrict      string `bson:"sourceDistrict"`
+	SourceCity          string `bson:"sourceCity"`
+	DestinationDistrict string `bson:"destinationDistrict"`
+	DestinationCity    string `bson:"destinationCity"`
+	Distance           string `bson:"distance"`
+	Truck              string `bson:"truck"`
+	Weight             string `bson:"weight"`
+	WeightTn           string `bson:"weightTn"`
+	Cube               string `bson:"cube"`
+	Price              string `bson:"price"`
+	ProductType        string `bson:"productType"`
+	ProductDescription string `bson:"productDescription"`
+	ProductComment     string `bson:"productComment"`
+	Dateup             int64  `bson:"dateup"`
 }
 
 type Command struct {
@@ -189,46 +189,46 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
 							if dateup > lastProcessedTime {
 								newPost := Post{}
-								newPost.dateup = dateup
+								newPost.Dateup = dateup
 								// Todo: Todo: Need to refactor this place. Need to use vars for common selectors
-								newPost.requestId, _ = s.Find("td.request_level_ms").Attr("request_id")
-								newPost.sourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
-								newPost.destinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
-								newPost.detailsPageUrl, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance").Attr("href")
-								newPost.date = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
-								newPost.sourceCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
-								newPost.destinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
-								newPost.distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
-								newPost.truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
-								newPost.weight = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
-								newPost.cube = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
-								newPost.price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
-								newPost.productType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
-								newPost.productDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
-								newPost.productComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+								newPost.RequestId, _ = s.Find("td.request_level_ms").Attr("request_id")
+								newPost.SourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
+								newPost.DestinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
+								newPost.DetailsPageUrl, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance").Attr("href")
+								newPost.Date = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
+								newPost.SourceCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
+								newPost.DestinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
+								newPost.Distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
+								newPost.Truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
+								newPost.Weight = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
+								newPost.Cube = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
+								newPost.Price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
+								newPost.ProductType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
+								newPost.ProductDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
+								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
 
 								dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
-								dateRes := dateReg.FindAllSubmatch([]byte(newPost.date), -1)
+								dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
 
 								if len(dateRes)-1 >= 0 {
 									dayFrom := string(dateRes[0][1])
 									monthFrom := string(dateRes[0][2])
-									newPost.dateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
+									newPost.DateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
 									// by default
-									newPost.dateTo = newPost.dateFrom
+									newPost.DateTo = newPost.DateFrom
 								}
 
 								if len(dateRes)-1 >= 1 {
 									dayTo := string(dateRes[1][1])
 									monthTo := string(dateRes[1][2])
-									newPost.dateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
+									newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
 								}
 
 								weightReg := regexp.MustCompile(`(\d*[,]{0,1}\d*) т`)
-								weightRes := weightReg.FindAllSubmatch([]byte(newPost.weight), -1)
+								weightRes := weightReg.FindAllSubmatch([]byte(newPost.Weight), -1)
 
 								if len(dateRes)-1 >= 0 {
-									newPost.weightTn = strings.ReplaceAll(string(weightRes[0][1]), ",", ".")
+									newPost.WeightTn = strings.ReplaceAll(string(weightRes[0][1]), ",", ".")
 								}
 
 
@@ -265,33 +265,33 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			"Price: %s\n" +
 			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"----------------------------------\n",
-			newPost.date,
-			newPost.sourceCity,
-			newPost.sourceDistrict,
-			newPost.destinationCity,
-			newPost.destinationDistrict,
-			newPost.distance,
+			newPost.Date,
+			newPost.SourceCity,
+			newPost.SourceDistrict,
+			newPost.DestinationCity,
+			newPost.DestinationDistrict,
+			newPost.Distance,
 			// The new row
-			newPost.productType,
-			newPost.productDescription,
+			newPost.ProductType,
+			newPost.ProductDescription,
 			// The new row
-			newPost.weight,
-			newPost.cube,
-			newPost.truck,
+			newPost.Weight,
+			newPost.Cube,
+			newPost.Truck,
 			// The new row
-			newPost.productComment,
+			newPost.ProductComment,
 			// The new row
-			newPost.price,
+			newPost.Price,
 			// The new row
-			newPost.requestId,
-			newPost.dateup,
-			newPost.detailsPageUrl,
+			newPost.RequestId,
+			newPost.Dateup,
+			newPost.DetailsPageUrl,
 		)
 
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
 
 		// Prepare command
-		command := Command{"__create_post", newPost.requestId}
+		command := Command{"__create_post", newPost.RequestId}
 		serializedCommand, err := json.Marshal(command)
 		//log.Println(fmt.Sprintf("%s", string(serializedCommand)))
 		if err != nil {
@@ -308,7 +308,7 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			},
 		}
 
-		Posts[newPost.requestId] = newPost
+		Posts[newPost.RequestId] = newPost
 		bot.Send(msg)
 		log.Printf("New post: %#v", newPost)
 	}
@@ -348,7 +348,7 @@ func __createPost(requestId string) interface{} {
 	country := "UA"
 	postData := Posts[requestId]
 
-	sourceTownName := postData.sourceCity
+	sourceTownName := postData.SourceCity
 	sourceAutocompleteTowns := getAutocompleteTowns(sourceTownName)
 	sourceAutocompleteTown := sourceAutocompleteTowns[0]
 
@@ -361,7 +361,7 @@ func __createPost(requestId string) interface{} {
 		AreaId: strconv.Itoa(sourceTown.AreaId),
 	}
 
-	targetTownName := postData.destinationCity
+	targetTownName := postData.DestinationCity
 	targetAutocompleteTowns := getAutocompleteTowns(targetTownName)
 	targetAutocompleteTown := targetAutocompleteTowns[0]
 

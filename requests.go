@@ -123,12 +123,107 @@ func postCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	endpointUrl := fmt.Sprintf("%s/v2/proposals/my/add/cargo", baseUrl)
 	lardiSecretKey := getEnvData("lardi_secret_key", "")
 
+
+
+
+
+	//GET /v2/references/body/types  - bodyTypeId get all types
+//	[
+//	{
+//		"id": 34,
+//		"name": "Тент"
+//	},
+//	{
+//		"id": 27,
+//		"name": "Контейнер"
+//	},
+//	{
+//		"id": 25,
+//		"name": "Изотерм"
+//	}
+//]
+////params.Add("bodyTypeId", "2")
+
+// try to find id by name (name = post.truck) if it was found we stop
+
+
+	// GET /v2/references/body/groups  - bodyGroupId get all types
+	//	[
+	//	    {
+	//        "id": 1,
+	//        "name": "Крытая"
+	//    },
+	//    {
+	//        "id": 2,
+	//        "name": "Открытая"
+	//    },
+	//    {
+	//        "id": 3,
+	//        "name": "Цистерна"
+	//    },
+	//    {
+	//        "id": 4,
+	//        "name": "Специальная техника"
+	//    },
+	//    {
+	//        "id": 5,
+	//        "name": "Пассажирский"
+	//    },
+	//    {
+	//        "id": 6,
+	//        "name": "Типы кузова USA"
+	//    }
+	//]
+
+	// try to find id by name (name = post.truck) if it was found we stop
+	//params.Add("bodyGroupId", "2")
+
+	// If bodyTypeId == nill and bodyGroupId == nill by default bodyGroupId = крытая (1) params.Add("bodyGroupId", "1")
+
+
+
+	// GET /v2/references/cargo?query=aprico&language=en - contentId get all products by name, get first  -  if it was found we stop
+	//params.Add("contentId", contentId)
+
+	//[
+	//    {
+	//        "id": 12,
+	//        "name": "apricot in boxes"
+	//    },
+	//    {
+	//        "id": 6,
+	//        "name": "apricots in boxes"
+	//    },
+	//    {
+	//        "id": 7,
+	//        "name": "apricots"
+	//    }
+	//]
+
+	//params.Add("contentName", post.productType)
+
+
+// sizeMassFrom - sizeMassTo
+	// params.Add("sizeMassFrom", post.fromWeightTn)
+	// params.Add("sizeMassTo", post.ToWeightTn)
+
+// sizeVolumeFrom - sizeVolumeTo
+	// params.Add("sizeVolumeFrom", post.fromCube)
+	// params.Add("sizeVolumeTo", post.toCube)
+
+//paymentPrice need to parse from post.productComment (get number by pattern (/\d{3,}/)), delete all letters
+// params.Add("paymentPrice", post.totalPrice)
+
+
 	// Prepare Query Parameters
 	params := url.Values{}
-	params.Add("sizeMassFrom", post.weightTn)
-	params.Add("bodyGroupId", "2")
-	params.Add("dateFrom", post.dateFrom) // "2020-11-27"
-	params.Add("dateTo", post.dateTo) // "2020-11-27"
+	params.Add("sizeMassFrom", post.WeightTn)
+
+
+
+
+	params.Add("dateFrom", post.DateFrom) // "2020-11-27"
+	params.Add("dateTo", post.DateTo)     // "2020-11-27"
 	queryValue := params.Encode()
 
 	// Prepare Body Parameters
