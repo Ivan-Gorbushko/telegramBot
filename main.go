@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/Syfaro/telegram-bot-api"
 	"github.com/geziyor/geziyor"
 	"github.com/geziyor/geziyor/client"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"os"
@@ -19,32 +24,38 @@ import (
 var isWorking bool
 
 type Post struct {
-	requestId string
-	date string
-	detailsPageUrl string
-	sourceDistrict string
-	sourceCity string
-	destinationDistrict string
-	destinationCity string
-	distance string
-	truck string
-	weight string
-	cube string
-	price string
-	productType string
-	productDescription string
-	productComment string
-	dateup int64
+	RequestId           string `bson:"requestId"`
+	Date                string `bson:"date"`
+	DateFrom            string `bson:"dateFrom"`
+	DateTo              string `bson:"dateTo"`
+	DetailsPageUrl      string `bson:"detailsPageUrl"`
+	SourceDistrict      string `bson:"sourceDistrict"`
+	SourceCity          string `bson:"sourceCity"`
+	DestinationDistrict string `bson:"destinationDistrict"`
+	DestinationCity    string `bson:"destinationCity"`
+	Distance           string `bson:"distance"`
+	Truck              string `bson:"truck"`
+	Weight             string `bson:"weight"`
+	WeightTn           string `bson:"weightTn"`
+	Cube               string `bson:"cube"`
+	Price              string `bson:"price"`
+	ProductType        string `bson:"productType"`
+	ProductDescription string `bson:"productDescription"`
+	ProductComment     string `bson:"productComment"`
+	Dateup             int64  `bson:"dateup"`
 }
 
 func MainHandler(resp http.ResponseWriter, _ *http.Request) {
 	resp.Write([]byte("Hi there! I'm Telegram CargoBot"))
 }
 
+var Mongodb *mongo.Client
+
 func main() {
 	isWorking = false
 	token := getEnvData("bot_token", "")
 	env := getEnvData("env", "dev")
+	mongodbUri := getEnvData("mongodb_uri", "mongodb://localhost:27017")
 	var updates tgbotapi.UpdatesChannel
 
 	http.HandleFunc("/", MainHandler)
@@ -82,11 +93,13 @@ func main() {
 				case "stop":
 					if isWorking {
 						isWorking = false
+						_ = Mongodb.Disconnect(context.TODO())
 						msg.Text = "Fuh! Is it finally over..."
 					} else {
 						msg.Text = "You are silly I already don't work. And don't even think about running me!"
 					}
 				case "exit":
+					_ = Mongodb.Disconnect(context.TODO())
 					msg.Text = "Noooo you killed me!!! Fucking bastard"
 					bot.Send(msg)
 					return
@@ -104,6 +117,7 @@ func main() {
 					if isWorking {
 						msg.Text = "I'm is already scanning! Don't touch me bad boy!"
 					} else {
+						Mongodb, _ = mongo.Connect(context.TODO(), options.Client().ApplyURI(mongodbUri))
 						now := time.Now()
 						lastProcessedTime := now.Unix()
 						isWorking = true
@@ -127,7 +141,8 @@ func main() {
 // Searching new posts and send one to publisher method
 func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
-	intervalCh := time.Tick(60 * time.Second)
+	scanTimeout, _ := strconv.Atoi(getEnvData("scan_timeout", "60"))
+	intervalCh := time.Tick(time.Duration(scanTimeout) * time.Second)
 
 	for _ = range intervalCh {
 		if isWorking != true {
@@ -145,28 +160,71 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
 							if dateup > lastProcessedTime {
 								newPost := Post{}
-								newPost.dateup = dateup
-								newPost.requestId, _ = s.Find("td.request_level_ms").Attr("request_id")
-								newPost.sourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
-								newPost.destinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
-								newPost.detailsPageUrl, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance").Attr("href")
-								newPost.date = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
-								newPost.sourceCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
-								newPost.destinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
-								newPost.distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
-								newPost.truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
-								newPost.weight = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
-								newPost.cube = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
-								newPost.price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
-								newPost.productType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
-								newPost.productDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
-								newPost.productComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+								newPost.Dateup = dateup
+								// Todo: Todo: Need to refactor this place. Need to use vars for common selectors
+								newPost.RequestId, _ = s.Find("td.request_level_ms").Attr("request_id")
+								newPost.SourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
+								newPost.DestinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
+								newPost.DetailsPageUrl, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance").Attr("href")
+								newPost.Date = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
+								newPost.SourceCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
+								newPost.DestinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
+								newPost.Distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
+								newPost.Truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
+								newPost.Weight = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
+								newPost.Cube = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
+								newPost.Price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
+								newPost.ProductType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
+								newPost.ProductDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
+								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+
+								dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
+								dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
+
+								if len(dateRes)-1 >= 0 {
+									dayFrom := string(dateRes[0][1])
+									monthFrom := string(dateRes[0][2])
+									newPost.DateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
+									// by default
+									newPost.DateTo = newPost.DateFrom
+								}
+
+								if len(dateRes)-1 >= 1 {
+									dayTo := string(dateRes[1][1])
+									monthTo := string(dateRes[1][2])
+									newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
+								}
+
+								weightReg := regexp.MustCompile(`(\d*[,]{0,1}\d*) т`)
+								weightRes := weightReg.FindAllSubmatch([]byte(newPost.Weight), -1)
+
+								if len(dateRes)-1 >= 0 {
+									newPost.WeightTn = strings.ReplaceAll(string(weightRes[0][1]), ",", ".")
+								}
+
 
 								if maxDateup < dateup {
 									maxDateup = dateup
 								}
 
-								foundPostsCh <-newPost
+								filter := bson.M{ "$or": []bson.M{
+									bson.M{
+										"requestId": newPost.RequestId,
+									},
+									bson.M{
+										"weightTn": newPost.WeightTn,
+										"sourceCity": newPost.SourceCity,
+										"destinationCity": newPost.DestinationCity,
+										"dateup": bson.M{"$gt": newPost.Dateup},
+									},
+								}}
+								collection := Mongodb.Database("cargodb").Collection("posts")
+								count, _ := collection.CountDocuments(context.TODO(), filter)
+								if count == 0 {
+									foundPostsCh <-newPost
+								} else {
+									log.Printf("For %s was found %d copies. There was ignored", newPost.RequestId, count)
+								}
 							}
 						}
 					}
@@ -185,6 +243,14 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			return
 		}
 
+		collection := Mongodb.Database("cargodb").Collection("posts")
+		res, err := collection.InsertOne(context.TODO(), newPost)
+		if err != nil {
+			log.Panic(err)
+		}
+		id := res.InsertedID.(primitive.ObjectID)
+		log.Printf("New post was created in mongodb posts: id %s", id.String())
+
 		formattedMsg := fmt.Sprintf(
 			"\n" +
 			"%s *%s*(%s) -> *%s*(%s) - %s\n" +
@@ -194,27 +260,27 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			"Price: %s\n" +
 			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"----------------------------------\n",
-			newPost.date,
-			newPost.sourceCity,
-			newPost.sourceDistrict,
-			newPost.destinationCity,
-			newPost.destinationDistrict,
-			newPost.distance,
+			newPost.Date,
+			newPost.SourceCity,
+			newPost.SourceDistrict,
+			newPost.DestinationCity,
+			newPost.DestinationDistrict,
+			newPost.Distance,
 			// The new row
-			newPost.productType,
-			newPost.productDescription,
+			newPost.ProductType,
+			newPost.ProductDescription,
 			// The new row
-			newPost.weight,
-			newPost.cube,
-			newPost.truck,
+			newPost.Weight,
+			newPost.Cube,
+			newPost.Truck,
 			// The new row
-			newPost.productComment,
+			newPost.ProductComment,
 			// The new row
-			newPost.price,
+			newPost.Price,
 			// The new row
-			newPost.requestId,
-			newPost.dateup,
-			newPost.detailsPageUrl,
+			newPost.RequestId,
+			newPost.Dateup,
+			newPost.DetailsPageUrl,
 		)
 
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
