@@ -126,6 +126,7 @@ func main() {
 
 						go startPostScanning(foundPostsCh, pageUrl, lastProcessedTime)
 						go startBotPublisher(foundPostsCh, bot, update.Message.Chat.ID)
+						go alarmClock(bot, update.Message.Chat.ID)
 
 						msg.Text = "Crap! Job again!((( Start scanning..."
 					}
@@ -137,6 +138,21 @@ func main() {
 		}
 	}
 }
+
+func alarmClock(bot *tgbotapi.BotAPI, chatId int64)  {
+	scanTimeout, _ := strconv.Atoi(getEnvData("ping_timeout", "1500"))
+	intervalCh := time.Tick(time.Duration(scanTimeout) * time.Second)
+	for _ = range intervalCh {
+		if isWorking != true {
+			return
+		}
+		msg := tgbotapi.NewMessage(chatId, "*God! How am I tired...*")
+		msg.ParseMode = "markdown"
+		_, _ = bot.Send(msg)
+	}
+}
+
+
 
 // Searching new posts and send one to publisher method
 func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTime int64)  {
