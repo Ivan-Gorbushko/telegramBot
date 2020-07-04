@@ -82,6 +82,10 @@ func getAutocompleteTowns(query string) []AutocompleteTown {
 	return autocompleteTowns
 }
 
+func getBodyTypes() {
+
+}
+
 func getTowns(autocompleteTown AutocompleteTown) []City {
 	// Settings
 	var towns []City
