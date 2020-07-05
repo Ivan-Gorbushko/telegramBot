@@ -2,18 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"context"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/Syfaro/telegram-bot-api"
 	"github.com/geziyor/geziyor"
 	"github.com/geziyor/geziyor/client"
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
+	"main/core"
+	"main/models"
 	"net/http"
 	"os"
 	"regexp"
@@ -23,41 +19,6 @@ import (
 )
 
 var isWorking bool
-var Posts map[string]Post
-
-type Post struct {
-	RequestId           string `bson:"requestId"`
-	Date                string `bson:"date"`
-	DateFrom            string `bson:"dateFrom"`
-	DateTo              string `bson:"dateTo"`
-	DetailsPageUrl      string `bson:"detailsPageUrl"`
-	SourceDistrict      string `bson:"sourceDistrict"`
-	SourceCity          string `bson:"sourceCity"`
-	DestinationDistrict string `bson:"destinationDistrict"`
-	DestinationCity    string `bson:"destinationCity"`
-	Distance           string `bson:"distance"`
-	Truck              string `bson:"truck"`
-	Weight             string `bson:"weight"`
-	WeightTn           string `bson:"weightTn"`
-	Cube               string `bson:"cube"`
-	Price              string `bson:"price"`
-	ProductType        string `bson:"productType"`
-	ProductDescription string `bson:"productDescription"`
-	ProductComment     string `bson:"productComment"`
-	Dateup             int64  `bson:"dateup"`
-}
-
-// init is invoked before main()
-func init() {
-	// loads values from .env into the system
-	if err := godotenv.Load(); err != nil {
-		log.Print("No .env file found")
-	}
-}
-
-var Env string
-
-var Mongodb *mongo.Client
 
 type BotCommand struct {
 	Method string
@@ -71,16 +32,14 @@ var RegisteredCommands = map[string]interface{}{
 
 func main() {
 	isWorking = false
-	token := getEnvData("bot_token", "")
-	Env := getEnvData("env", "dev")
-	mongodbUri := getEnvData("mongodb_uri", "mongodb://localhost:27017")
+
 	var updates tgbotapi.UpdatesChannel
 
 	// This need to create start page on Heroku Cloud (There was created simple http server)
 	http.HandleFunc("/", MainHandler)
 	go http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 
-	bot, err := tgbotapi.NewBotAPI(token)
+	bot, err := tgbotapi.NewBotAPI(core.Config.BotToken)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -89,9 +48,9 @@ func main() {
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	// Setup of current environment
-	if Env == "prod" {
+	if core.Config.IsProd() {
 		webHook := "https://api.telegram.org/bot%s/setWebhook?url=https://cargo-telegram-bot.herokuapp.com/%s"
-		webhookConfig := tgbotapi.NewWebhook(fmt.Sprintf(webHook, token, token))
+		webhookConfig := tgbotapi.NewWebhook(fmt.Sprintf(webHook, core.Config.BotToken, core.Config.BotToken))
 		_, _ = bot.SetWebhook(webhookConfig)
 		updates = bot.ListenForWebhook("/" + bot.Token)
 	} else {
@@ -125,13 +84,13 @@ func main() {
 				case "stop":
 					if isWorking {
 						isWorking = false
-						_ = Mongodb.Disconnect(context.TODO())
+						core.DisconnectMongo()
 						msg.Text = "Fuh! Is it finally over..."
 					} else {
 						msg.Text = "You are silly I already don't work. And don't even think about running me!"
 					}
 				case "exit":
-					_ = Mongodb.Disconnect(context.TODO())
+					core.DisconnectMongo()
 					msg.Text = "Noooo you killed me!!! Fucking bastard"
 					bot.Send(msg)
 					return
@@ -149,14 +108,13 @@ func main() {
 					if isWorking {
 						msg.Text = "I'm is already scanning! Don't touch me bad boy!"
 					} else {
-						Mongodb, _ = mongo.Connect(context.TODO(), options.Client().ApplyURI(mongodbUri))
 						now := time.Now()
 						lastProcessedTime := now.Unix()
-						if Env == "dev" {
+						if !core.Config.IsProd() {
 							lastProcessedTime -= 60 * 60 * 8
 						}
 						isWorking = true
-						foundPostsCh := make(chan Post)
+						foundPostsCh := make(chan models.Post)
 						pageUrl := "https://della.ua/search/a204bd204eflolh0ilk0m1.html"
 
 						go startPostScanning(foundPostsCh, pageUrl, lastProcessedTime)
@@ -176,8 +134,7 @@ func main() {
 }
 
 func alarmClock(bot *tgbotapi.BotAPI, chatId int64)  {
-	scanTimeout, _ := strconv.Atoi(getEnvData("ping_timeout", "1500"))
-	intervalCh := time.Tick(time.Duration(scanTimeout) * time.Second)
+	intervalCh := time.Tick(time.Duration(core.Config.PingTimeout) * time.Second)
 	for _ = range intervalCh {
 		if isWorking != true {
 			return
@@ -191,7 +148,7 @@ func alarmClock(bot *tgbotapi.BotAPI, chatId int64)  {
 
 
 // Searching new posts and send one to publisher method
-func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTime int64)  {
+func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
 	scanTimeout, _ := strconv.Atoi(getEnvData("scan_timeout", "60"))
 	intervalCh := time.Tick(time.Duration(scanTimeout) * time.Second)
@@ -207,14 +164,14 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 				r.HTMLDoc.Find("table#msTableWithRequests tbody#request_list_main > tr[dateup]").Each(func(i int, s *goquery.Selection) {
 					deleted := len(s.Find("div.klushka.veshka_deleted").Nodes)
 					star := len(s.Find(".star_and_truck div.pt_1 img").Nodes)
-					if Env == "dev" {
+					if !core.Config.IsProd() {
 						star = 1
 					}
 					if star > 0 && deleted == 0 {
 						dateupStr, _ := s.Attr("dateup")
 						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
 							if dateup > lastProcessedTime {
-								newPost := Post{}
+								newPost := models.Post{}
 								newPost.Dateup = dateup
 								// Todo: Todo: Need to refactor this place. Need to use vars for common selectors
 								newPost.RequestId, _ = s.Find("td.request_level_ms").Attr("request_id")
@@ -257,24 +214,11 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 									newPost.WeightTn = strings.ReplaceAll(string(weightRes[0][1]), ",", ".")
 								}
 
-
 								if maxDateup < dateup {
 									maxDateup = dateup
 								}
 
-								filter := bson.M{ "$or": []bson.M{
-									bson.M{
-										"requestId": newPost.RequestId,
-									},
-									bson.M{
-										"weightTn": newPost.WeightTn,
-										"sourceCity": newPost.SourceCity,
-										"destinationCity": newPost.DestinationCity,
-										"dateup": bson.M{"$gt": newPost.Dateup - 16 * 60 * 60},
-									},
-								}}
-								collection := Mongodb.Database("cargodb").Collection("posts")
-								count, _ := collection.CountDocuments(context.TODO(), filter)
+								count := newPost.GetCountDuplicates()
 								if count == 0 {
 									foundPostsCh <-newPost
 								} else {
@@ -292,19 +236,14 @@ func startPostScanning(foundPostsCh chan<- Post, pageUrl string, lastProcessedTi
 }
 
 // Send message with new post to telegram
-func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId int64)  {
+func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, chatId int64)  {
 	for newPost := range foundPostsCh {
 		if isWorking != true {
 			return
 		}
 
-		collection := Mongodb.Database("cargodb").Collection("posts")
-		res, err := collection.InsertOne(context.TODO(), newPost)
-		if err != nil {
-			log.Panic(err)
-		}
-		id := res.InsertedID.(primitive.ObjectID)
-		log.Printf("New post was created in mongodb posts: id %s", id.String())
+		newPost.Save()
+		//log.Printf("New post was created in mongodb posts: id %s", newPost.ID)
 
 		// Todo: Need to update. Try to find and use some template to create and format msg
 		formattedMsg := fmt.Sprintf(
@@ -359,7 +298,6 @@ func startBotPublisher(foundPostsCh <-chan Post, bot *tgbotapi.BotAPI, chatId in
 			},
 		}
 
-		Posts[newPost.RequestId] = newPost
 		bot.Send(msg)
 		log.Printf("New post: %#v", newPost)
 	}
@@ -387,7 +325,7 @@ func stripTags(content string) string {
 
 // Start page for bot on production Cloud
 func MainHandler(resp http.ResponseWriter, _ *http.Request) {
-	resp.Write([]byte("Hi there! I'm Telegram CargoBot on Heroku"))
+	resp.Write([]byte("Hi all! I'm Telegram CargoBot on Heroku"))
 }
 
 func (command BotCommand) runCommand() interface{} {
@@ -396,8 +334,10 @@ func (command BotCommand) runCommand() interface{} {
 
 // Make request to lardi-trans.com to create new post
 func __createPost(requestId string) interface{} {
+	log.Println(requestId)
 	country := "UA"
-	postData := Posts[requestId]
+	postData := models.GetPostByRequestId(requestId)
+	log.Println(postData)
 
 	sourceTownName := postData.SourceCity
 	sourceAutocompleteTowns := getAutocompleteTowns(sourceTownName)

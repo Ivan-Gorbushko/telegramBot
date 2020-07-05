@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"main/models"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -121,7 +122,7 @@ func getTowns(autocompleteTown AutocompleteTown) []City {
 	return towns
 }
 
-func postCargo(waypointListSource WaypointListSource, waypointListTarget WaypointListTarget, post Post) interface{} {
+func postCargo(waypointListSource WaypointListSource, waypointListTarget WaypointListTarget, post models.Post) interface{} {
 	// Settings
 	baseUrl := getEnvData("lardi_api_url", "")
 	endpointUrl := fmt.Sprintf("%s/v2/proposals/my/add/cargo", baseUrl)
