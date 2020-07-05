@@ -12,6 +12,9 @@ import (
 	"net/url"
 )
 
+// Response model
+
+// Request model
 type WaypointListSource struct {
 	Address string `json:"address"`
 	CountrySign string `json:"countrySign"`
@@ -37,27 +40,19 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	lardiSecretKey := core.Config.LardiSecretKey
 	endpointUrl := fmt.Sprintf("%s/v2/proposals/my/add/cargo", baseUrl)
 
-
 	////params.Add("bodyTypeId", "2")
 
 	// try to find id by name (name = post.truck) if it was found we stop
-
-
-
 
 	// try to find id by name (name = post.truck) if it was found we stop
 	//params.Add("bodyGroupId", "2")
 
 	// If bodyTypeId == nill and bodyGroupId == nill by default bodyGroupId = крытая (1) params.Add("bodyGroupId", "1")
 
-
-
 	// GET /v2/references/cargo?query=aprico&language=en - contentId get all products by name, get first  -  if it was found we stop
 	//params.Add("contentId", contentId)
 
-
 	//params.Add("contentName", post.productType)
-
 
 	// sizeMassFrom - sizeMassTo
 	// params.Add("sizeMassFrom", post.fromWeightTn)
@@ -70,14 +65,9 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	//paymentPrice need to parse from post.productComment (get number by pattern (/\d{3,}/)), delete all letters
 	// params.Add("paymentPrice", post.totalPrice)
 
-
 	// Prepare Query Parameters
 	params := url.Values{}
 	params.Add("sizeMassFrom", post.WeightTn)
-
-
-
-
 	params.Add("dateFrom", post.DateFrom) // "2020-11-27"
 	params.Add("dateTo", post.DateTo)     // "2020-11-27"
 	queryValue := params.Encode()

@@ -1,31 +1,31 @@
 package apiRequests
 
-func GetBodyGroups() {
-	// GET /v2/references/body/groups  - bodyGroupId get all types
-	//	[
-	//	    {
-	//        "id": 1,
-	//        "name": "Крытая"
-	//    },
-	//    {
-	//        "id": 2,
-	//        "name": "Открытая"
-	//    },
-	//    {
-	//        "id": 3,
-	//        "name": "Цистерна"
-	//    },
-	//    {
-	//        "id": 4,
-	//        "name": "Специальная техника"
-	//    },
-	//    {
-	//        "id": 5,
-	//        "name": "Пассажирский"
-	//    },
-	//    {
-	//        "id": 6,
-	//        "name": "Типы кузова USA"
-	//    }
-	//]
+import (
+	"encoding/json"
+	"fmt"
+	"main/core"
+)
+
+// Response model
+type BodyGroup struct {
+	Id int `json:"id"`
+	Name string `json:"name"`
+}
+
+func GetBodyGroups() []BodyGroup {
+	// Settings
+	var bodyGroups []BodyGroup
+	requestQuery := map[string]string{}
+	requestHeader := map[string]string{}
+	baseUrl := core.Config.LardiApiUrl
+	lardiSecretKey := core.Config.LardiSecretKey
+	endpointUrl := fmt.Sprintf("%s/v2/references/body/groups", baseUrl)
+	// Prepare Headers
+	requestHeader["Authorization"] = lardiSecretKey
+	// Request
+	body := core.Get(endpointUrl, requestQuery, requestHeader)
+	// Decode
+	_ = json.Unmarshal([]byte(body), &bodyGroups)
+	fmt.Println(bodyGroups)
+	return bodyGroups
 }

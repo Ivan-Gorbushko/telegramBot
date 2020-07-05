@@ -1,19 +1,35 @@
 package apiRequests
 
-// GET /v2/references/cargo?query=aprico&language=en - contentId get all products by name, get first  -  if it was found we stop
-//params.Add("contentId", contentId)
+import (
+	"encoding/json"
+	"fmt"
+	"main/core"
+)
 
-//[
-//    {
-//        "id": 12,
-//        "name": "apricot in boxes"
-//    },
-//    {
-//        "id": 6,
-//        "name": "apricots in boxes"
-//    },
-//    {
-//        "id": 7,
-//        "name": "apricots"
-//    }
-//]
+// Response model
+type Cargo struct {
+	Id int `json:"id"`
+	Name string `json:"name"`
+}
+
+func GetCargos(query string) []Cargo {
+	// Settings
+	var cargos []Cargo
+	language := "ru"
+	requestQuery := map[string]string{}
+	requestHeader := map[string]string{}
+	baseUrl := core.Config.LardiApiUrl
+	lardiSecretKey := core.Config.LardiSecretKey
+	endpointUrl := fmt.Sprintf("%s/v2/references/cargo", baseUrl)
+	// Prepare Query Parameters
+	requestQuery["query"] = query
+	requestQuery["language"] = language
+	// Prepare Headers
+	requestHeader["Authorization"] = lardiSecretKey
+	// Request
+	body := core.Get(endpointUrl, requestQuery, requestHeader)
+	// Decode
+	_ = json.Unmarshal([]byte(body), &cargos)
+	fmt.Println(cargos)
+	return cargos
+}
