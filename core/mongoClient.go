@@ -10,6 +10,7 @@ var mongodb *mongo.Client
 
 func DisconnectMongo() {
 	_ = mongodb.Disconnect(context.TODO())
+	mongodb = nil
 }
 
 func GetConnectionMongo() *mongo.Client {

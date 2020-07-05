@@ -18,6 +18,9 @@ type Environment struct {
 	BotToken string
 	PingTimeout int
 	MongodbUri string
+	LardiApiUrl string
+	LardiSecretKey string
+	ScanTimeout int
 }
 
 // init is invoked before main()
@@ -31,6 +34,9 @@ func init() {
 	Config.Env = GetEnvData("env", "dev")
 	Config.PingTimeout, _ = strconv.Atoi(GetEnvData("ping_timeout", "1500"))
 	Config.MongodbUri = GetEnvData("mongodb_uri", "mongodb://localhost:27017")
+	Config.LardiApiUrl = GetEnvData("lardi_api_url", "")
+	Config.LardiSecretKey = GetEnvData("lardi_secret_key", "")
+	Config.ScanTimeout, _ = strconv.Atoi(GetEnvData("scan_timeout", "60"))
 }
 
 // Simple helper function to read an environment or return a default value

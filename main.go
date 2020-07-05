@@ -8,6 +8,7 @@ import (
 	"github.com/geziyor/geziyor"
 	"github.com/geziyor/geziyor/client"
 	"log"
+	"main/apiRequests"
 	"main/core"
 	"main/models"
 	"net/http"
@@ -150,8 +151,7 @@ func alarmClock(bot *tgbotapi.BotAPI, chatId int64)  {
 // Searching new posts and send one to publisher method
 func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
-	scanTimeout, _ := strconv.Atoi(getEnvData("scan_timeout", "60"))
-	intervalCh := time.Tick(time.Duration(scanTimeout) * time.Second)
+	intervalCh := time.Tick(time.Duration(core.Config.ScanTimeout) * time.Second)
 
 	for _ = range intervalCh {
 		if isWorking != true {
@@ -303,15 +303,6 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 	}
 }
 
-// Simple helper function to read an environment or return a default value
-func getEnvData(key string, defaultVal string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-
-	return defaultVal
-}
-
 // strip tags and spaces from HTML
 func stripTags(content string) string {
 	plainTex := content
@@ -337,35 +328,36 @@ func __createPost(requestId string) interface{} {
 	log.Println(requestId)
 	country := "UA"
 	postData := models.GetPostByRequestId(requestId)
+	core.DisconnectMongo()
 	log.Println(postData)
 
 	sourceTownName := postData.SourceCity
-	sourceAutocompleteTowns := getAutocompleteTowns(sourceTownName)
+	sourceAutocompleteTowns := apiRequests.GetAutocompleteTowns(sourceTownName)
 	sourceAutocompleteTown := sourceAutocompleteTowns[0]
 
-	sourceTowns := getTowns(sourceAutocompleteTown)
+	sourceTowns := apiRequests.GetTowns(sourceAutocompleteTown)
 	sourceTown := sourceTowns[0]
 
-	waypointListSource := WaypointListSource{
+	waypointListSource := apiRequests.WaypointListSource{
 		CountrySign: country,
 		TownId: strconv.Itoa(sourceTown.Id),
 		AreaId: strconv.Itoa(sourceTown.AreaId),
 	}
 
 	targetTownName := postData.DestinationCity
-	targetAutocompleteTowns := getAutocompleteTowns(targetTownName)
+	targetAutocompleteTowns := apiRequests.GetAutocompleteTowns(targetTownName)
 	targetAutocompleteTown := targetAutocompleteTowns[0]
 
-	targetTowns := getTowns(targetAutocompleteTown)
+	targetTowns := apiRequests.GetTowns(targetAutocompleteTown)
 	targetTown := targetTowns[0]
 
-	waypointListTarget := WaypointListTarget{
+	waypointListTarget := apiRequests.WaypointListTarget{
 		CountrySign: country,
 		TownId: strconv.Itoa(targetTown.Id),
 		AreaId: strconv.Itoa(targetTown.AreaId),
 	}
 
-	body := postCargo(waypointListSource, waypointListTarget, postData)
+	body := apiRequests.PostCargo(waypointListSource, waypointListTarget, postData)
 
 	return body
 }
@@ -374,3 +366,61 @@ func __createPost(requestId string) interface{} {
 //if href, ok := r.HTMLDoc.Find("li.next > a").Attr("href"); ok {
 //	g.Get(r.JoinURL(href), quotesParse)
 //}
+
+
+/*
+	Example request to create Cargo Post
+
+	curl -X POST -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: 3WQ1EQ465C4005000130" \
+	"https://api.lardi-trans.com/v2/proposals/my/add/cargo?\
+	dateFrom=2020-11-27\
+	&dateTo=2020-11-30\
+	&contentId=18\
+	&bodyGroupId=2\
+	&bodyTypeId=63\
+	&loadTypes=24,25\
+	&unloadTypes=26,27\
+	&adr=3\
+	&cmr=true\
+	&cmrInsurance=true\
+	&groupage=true\
+	&t1=true\
+	&tir=true\
+	&lorryAmount=2\
+	&note=some%20useful%20note\
+	&paymentPrice=1000\
+	&paymentCurrencyId=2\
+	&paymentUnitId=2\
+	&paymentTypeId=8\
+	&paymentMomentId=4\
+	&paymentPrepay=10\
+	&paymentDelay=5\
+	&paymentVat=true\
+	&medicalRecords=true\
+	&customsControl=true\
+	&sizeMassFrom=24\
+	&sizeMassTo=36\
+	&sizeVolumeFrom=30\
+	&sizeVolumeTo=40\
+	&sizeLength=10.1\
+	&sizeWidth=2.5\
+	&sizeHeight=3\
+	" -d '{
+	    "waypointListSource": [
+	        {
+	            "address": "уточнение адреса",
+	            "countrySign": "UA",
+	            "areaId": 23,
+	            "townId": 137
+	        }
+	    ],
+	    "waypointListTarget": [
+	        {
+	            "address": "уточнение адреса",
+	            "countrySign": "UA",
+	            "areaId": 34,
+	            "townId": 69
+	        }
+	    ]
+	}'
+*/
