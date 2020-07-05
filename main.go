@@ -190,6 +190,10 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 								newPost.ProductDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
 								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
 
+								// Delete dots
+								truckReg := regexp.MustCompile(`[.]`)
+								newPost.Truck = truckReg.ReplaceAllString(newPost.Truck,"")
+
 								dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
 								dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
 
@@ -298,7 +302,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			},
 		}
 
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 		log.Printf("New post: %#v", newPost)
 	}
 }
@@ -357,7 +361,31 @@ func __createPost(requestId string) interface{} {
 		AreaId: strconv.Itoa(targetTown.AreaId),
 	}
 
-	body := apiRequests.PostCargo(waypointListSource, waypointListTarget, postData)
+	queryData := map[string]string{}
+
+
+	// Search body type
+	for _, bodyType := range apiRequests.GetBodyTypes() {
+		if strings.ToLower(bodyType.Name) == strings.ToLower(postData.Truck) {
+			queryData["bodyTypeId"] = strconv.Itoa(bodyType.Id)
+			fmt.Println(bodyType)
+			break
+		}
+	}
+
+	// Search group type
+	queryData["bodyGroupId"] = "1" // By default крытая (1)
+	for _, bodyGroup := range apiRequests.GetBodyGroups() {
+		if strings.ToLower(bodyGroup.Name) == strings.ToLower(postData.Truck) {
+			queryData["bodyGroupId"] = strconv.Itoa(bodyGroup.Id)
+			break
+		}
+	}
+
+	//queryData["contentId"] = "1"
+	queryData["contentName"] = postData.ProductType
+
+	body := apiRequests.PostCargo(waypointListSource, waypointListTarget, postData, queryData)
 
 	return body
 }
@@ -366,61 +394,3 @@ func __createPost(requestId string) interface{} {
 //if href, ok := r.HTMLDoc.Find("li.next > a").Attr("href"); ok {
 //	g.Get(r.JoinURL(href), quotesParse)
 //}
-
-
-/*
-	Example request to create Cargo Post
-
-	curl -X POST -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: 3WQ1EQ465C4005000130" \
-	"https://api.lardi-trans.com/v2/proposals/my/add/cargo?\
-	dateFrom=2020-11-27\
-	&dateTo=2020-11-30\
-	&contentId=18\
-	&bodyGroupId=2\
-	&bodyTypeId=63\
-	&loadTypes=24,25\
-	&unloadTypes=26,27\
-	&adr=3\
-	&cmr=true\
-	&cmrInsurance=true\
-	&groupage=true\
-	&t1=true\
-	&tir=true\
-	&lorryAmount=2\
-	&note=some%20useful%20note\
-	&paymentPrice=1000\
-	&paymentCurrencyId=2\
-	&paymentUnitId=2\
-	&paymentTypeId=8\
-	&paymentMomentId=4\
-	&paymentPrepay=10\
-	&paymentDelay=5\
-	&paymentVat=true\
-	&medicalRecords=true\
-	&customsControl=true\
-	&sizeMassFrom=24\
-	&sizeMassTo=36\
-	&sizeVolumeFrom=30\
-	&sizeVolumeTo=40\
-	&sizeLength=10.1\
-	&sizeWidth=2.5\
-	&sizeHeight=3\
-	" -d '{
-	    "waypointListSource": [
-	        {
-	            "address": "уточнение адреса",
-	            "countrySign": "UA",
-	            "areaId": 23,
-	            "townId": 137
-	        }
-	    ],
-	    "waypointListTarget": [
-	        {
-	            "address": "уточнение адреса",
-	            "countrySign": "UA",
-	            "areaId": 34,
-	            "townId": 69
-	        }
-	    ]
-	}'
-*/

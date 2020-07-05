@@ -37,6 +37,11 @@ func Post(endpointUrl string, requestQuery map[string]string, requestBody interf
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println(string(body))
 	return body
+
+	// Logger result
+	//fmt.Println("response Status:", resp.Status)
+	//fmt.Println("response Headers:", resp.Header)
+	//fmt.Println("response Body:", string(body))
 }
 
 
