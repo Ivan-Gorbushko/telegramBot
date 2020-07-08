@@ -128,7 +128,7 @@ func main() {
 					msg.Text = "If you're so stupid, it's better to ask someone smarter. For example me /help"
 			}
 			log.Printf("The %s command was executed successful", update.Message.Command())
-			bot.Send(msg)
+			_, _ = bot.Send(msg)
 		}
 
 	}
@@ -183,12 +183,19 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 								newPost.DestinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
 								newPost.Distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
 								newPost.Truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
-								newPost.Weight = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
-								newPost.Cube = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
+								newPost.SizeMass = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
+								newPost.SizeVolume = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
 								newPost.Price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
 								newPost.ProductType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
 								newPost.ProductDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
 								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+
+								productComment := strings.ReplaceAll(newPost.ProductComment, " ", "")
+								paymentPriceReg := regexp.MustCompile(`(\d{3,})\.`)
+								paymentPriceRes := paymentPriceReg.FindAllSubmatch([]byte(productComment), -1)
+								if len(paymentPriceRes)-1 >= 0 {
+									newPost.PaymentPrice = string(paymentPriceRes[0][1])
+								}
 
 								// Delete dots
 								truckReg := regexp.MustCompile(`[.]`)
@@ -196,7 +203,6 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 
 								dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
 								dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
-
 								if len(dateRes)-1 >= 0 {
 									dayFrom := string(dateRes[0][1])
 									monthFrom := string(dateRes[0][2])
@@ -204,18 +210,30 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 									// by default
 									newPost.DateTo = newPost.DateFrom
 								}
-
 								if len(dateRes)-1 >= 1 {
 									dayTo := string(dateRes[1][1])
 									monthTo := string(dateRes[1][2])
 									newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
 								}
 
-								weightReg := regexp.MustCompile(`(\d*[,]{0,1}\d*) т`)
-								weightRes := weightReg.FindAllSubmatch([]byte(newPost.Weight), -1)
+								SizeMassReg := regexp.MustCompile(`(\d*[,]{0,1}\d*)`)
+								SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)
+								if len(SizeMassRes)-1 >= 0 {
+									newPost.SizeMassFrom = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
+									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
+								}
+								if len(SizeMassRes)-1 >= 1 {
+									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[1][1]), ",", ".")
+								}
 
-								if len(dateRes)-1 >= 0 {
-									newPost.WeightTn = strings.ReplaceAll(string(weightRes[0][1]), ",", ".")
+								SizeVolumeReg := regexp.MustCompile(`(\d*[,]{0,1}\d*)`)
+								SizeVolumeRes := SizeVolumeReg.FindAllSubmatch([]byte(newPost.SizeVolume), -1)
+								if len(SizeVolumeRes)-1 >= 0 {
+									newPost.SizeVolumeFrom = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
+									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
+								}
+								if len(SizeVolumeRes)-1 >= 1 {
+									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[1][1]), ",", ".")
 								}
 
 								if maxDateup < dateup {
@@ -269,8 +287,8 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			newPost.ProductType,
 			newPost.ProductDescription,
 			// The new row
-			newPost.Weight,
-			newPost.Cube,
+			newPost.SizeMass,
+			newPost.SizeVolume,
 			newPost.Truck,
 			// The new row
 			newPost.ProductComment,
@@ -320,7 +338,7 @@ func stripTags(content string) string {
 
 // Start page for bot on production Cloud
 func MainHandler(resp http.ResponseWriter, _ *http.Request) {
-	resp.Write([]byte("Hi all! I'm Telegram CargoBot on Heroku"))
+	_, _ = resp.Write([]byte("Hi all! I'm Telegram CargoBot on Heroku"))
 }
 
 func (command BotCommand) runCommand() interface{} {

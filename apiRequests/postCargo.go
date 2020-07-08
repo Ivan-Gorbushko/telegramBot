@@ -33,7 +33,6 @@ type CreatePostRequest struct {
 }
 
 func PostCargo(waypointListSource WaypointListSource, waypointListTarget WaypointListTarget, post models.Post, requestQuery map[string]string) CargoResponse {
-	// GET /v2/references/cargo?query=aprico&language=en -
 	// Settings
 	var cargoResponse CargoResponse
 	requestHeader := map[string]string{}
@@ -41,20 +40,11 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	lardiSecretKey := core.Config.LardiSecretKey
 	endpointUrl := fmt.Sprintf("%s/v2/proposals/my/add/cargo", baseUrl)
 	// Prepare Query Parameters
-	// sizeMassFrom - sizeMassTo
-	// params.Add("sizeMassFrom", post.fromWeightTn)
-	// params.Add("sizeMassTo", post.ToWeightTn)
-	requestQuery["sizeMassFrom"] = "1"
-	requestQuery["sizeMassTo"] = "2"
-	// sizeVolumeFrom - sizeVolumeTo
-	// params.Add("sizeVolumeFrom", post.fromCube)
-	// params.Add("sizeVolumeTo", post.toCube)
-	requestQuery["sizeVolumeFrom"] = "1"
-	requestQuery["sizeVolumeTo"] = "2"
-	//paymentPrice need to parse from post.productComment (get number by pattern (/\d{3,}/)), delete all letters
-	// params.Add("paymentPrice", post.totalPrice)
-	requestQuery["paymentPrice"] = "1000"
-	requestQuery["sizeMassFrom"] = post.WeightTn
+	requestQuery["sizeMassFrom"] = post.SizeMassFrom
+	requestQuery["sizeMassTo"] = post.SizeMassTo
+	requestQuery["sizeVolumeFrom"] = post.SizeVolumeFrom
+	requestQuery["sizeVolumeTo"] = post.SizeVolumeTo
+	requestQuery["paymentPrice"] = post.PaymentPrice
 	requestQuery["dateFrom"] = post.DateFrom // "2020-11-27"
 	requestQuery["dateTo"] = post.DateTo // "2020-11-27"
 	// Prepare Body Parameters

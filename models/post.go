@@ -22,13 +22,17 @@ type Post struct {
 	DestinationCity    string `bson:"destinationCity"`
 	Distance           string `bson:"distance"`
 	Truck              string `bson:"truck"`
-	Weight             string `bson:"weight"`
-	WeightTn           string `bson:"weightTn"`
-	Cube               string `bson:"cube"`
+	SizeMass           string `bson:"sizeMass"`
+	SizeMassFrom       string `bson:"sizeMassFrom"`
+	SizeMassTo         string `bson:"sizeMassTo"`
+	SizeVolume         string `bson:"sizeVolume"`
+	SizeVolumeFrom     string `bson:"sizeVolumeFrom"`
+	SizeVolumeTo       string `bson:"sizeVolumeTo"`
 	Price              string `bson:"price"`
 	ProductType        string `bson:"productType"`
 	ProductDescription string `bson:"productDescription"`
 	ProductComment     string `bson:"productComment"`
+	PaymentPrice       string `bson:"productPrice"`
 	Dateup             int64  `bson:"dateup"`
 }
 
@@ -38,7 +42,7 @@ func (p *Post) GetCountDuplicates() int64 {
 			"requestId": p.RequestId,
 		},
 		bson.M{
-			"weightTn": p.WeightTn,
+			"sizeMass": p.SizeMass,
 			"sourceCity": p.SourceCity,
 			"destinationCity": p.DestinationCity,
 			"dateup": bson.M{"$gt": p.Dateup - DEADLINE_DUPLICATES},
