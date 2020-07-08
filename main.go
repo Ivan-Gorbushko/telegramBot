@@ -191,7 +191,7 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
 
 								productComment := strings.ReplaceAll(newPost.ProductComment, " ", "")
-								paymentPriceReg := regexp.MustCompile(`(\d{3,})\.`)
+								paymentPriceReg := regexp.MustCompile(`(\d{3,})`)
 								paymentPriceRes := paymentPriceReg.FindAllSubmatch([]byte(productComment), -1)
 								if len(paymentPriceRes)-1 >= 0 {
 									newPost.PaymentPrice = string(paymentPriceRes[0][1])
@@ -220,7 +220,6 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 								SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)
 								if len(SizeMassRes)-1 >= 0 {
 									newPost.SizeMassFrom = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
-									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
 								}
 								if len(SizeMassRes)-1 >= 1 {
 									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[1][1]), ",", ".")
@@ -230,7 +229,6 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 								SizeVolumeRes := SizeVolumeReg.FindAllSubmatch([]byte(newPost.SizeVolume), -1)
 								if len(SizeVolumeRes)-1 >= 0 {
 									newPost.SizeVolumeFrom = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
-									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
 								}
 								if len(SizeVolumeRes)-1 >= 1 {
 									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[1][1]), ",", ".")
