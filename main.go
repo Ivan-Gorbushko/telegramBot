@@ -216,19 +216,21 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 									newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
 								}
 
-								SizeMassReg := regexp.MustCompile(`(\d*[,]{0,1}\d*)`)
+								SizeMassReg := regexp.MustCompile(`(\d[,]{0,1}\d*)`)
 								SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)
 								if len(SizeMassRes)-1 >= 0 {
 									newPost.SizeMassFrom = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
+									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
 								}
 								if len(SizeMassRes)-1 >= 1 {
 									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[1][1]), ",", ".")
 								}
 
-								SizeVolumeReg := regexp.MustCompile(`(\d*[,]{0,1}\d*)`)
+								SizeVolumeReg := regexp.MustCompile(`(\d[,]{0,1}\d*)`)
 								SizeVolumeRes := SizeVolumeReg.FindAllSubmatch([]byte(newPost.SizeVolume), -1)
 								if len(SizeVolumeRes)-1 >= 0 {
 									newPost.SizeVolumeFrom = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
+									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
 								}
 								if len(SizeVolumeRes)-1 >= 1 {
 									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[1][1]), ",", ".")
@@ -353,6 +355,12 @@ func __createPost(requestId string) interface{} {
 
 	sourceTownName := postData.SourceCity
 	sourceAutocompleteTowns := apiRequests.GetAutocompleteTowns(sourceTownName)
+
+	if len(sourceAutocompleteTowns) <= 0 {
+		log.Println(fmt.Sprintf("Bad naming of the city (%s). Request was skipped", sourceTownName))
+		return false
+	}
+
 	sourceAutocompleteTown := sourceAutocompleteTowns[0]
 
 	sourceTowns := apiRequests.GetTowns(sourceAutocompleteTown)
@@ -366,6 +374,12 @@ func __createPost(requestId string) interface{} {
 
 	targetTownName := postData.DestinationCity
 	targetAutocompleteTowns := apiRequests.GetAutocompleteTowns(targetTownName)
+
+	if len(targetAutocompleteTowns) <= 0 {
+		log.Println(fmt.Sprintf("Bad naming of the city (%s). Request was skipped", targetTownName))
+		return false
+	}
+
 	targetAutocompleteTown := targetAutocompleteTowns[0]
 
 	targetTowns := apiRequests.GetTowns(targetAutocompleteTown)
@@ -398,7 +412,6 @@ func __createPost(requestId string) interface{} {
 		}
 	}
 
-	//queryData["contentId"] = "1"
 	queryData["contentName"] = postData.ProductType
 
 	body := apiRequests.PostCargo(waypointListSource, waypointListTarget, postData, queryData)
