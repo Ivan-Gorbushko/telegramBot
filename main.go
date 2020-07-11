@@ -111,9 +111,7 @@ func main() {
 					} else {
 						now := time.Now()
 						lastProcessedTime := now.Unix()
-						if !core.Config.IsProd() {
-							lastProcessedTime -= 60 * 60 * 15
-						}
+						lastProcessedTime += core.Config.InitialTime
 						isWorking = true
 						foundPostsCh := make(chan models.Post)
 						pageUrl := "https://della.ua/search/a204bd204eflolh0ilk0m1.html"
@@ -164,9 +162,6 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 				r.HTMLDoc.Find("table#msTableWithRequests tbody#request_list_main > tr[dateup]").Each(func(i int, s *goquery.Selection) {
 					deleted := len(s.Find("div.klushka.veshka_deleted").Nodes)
 					star := len(s.Find(".star_and_truck div.pt_1 img").Nodes)
-					if !core.Config.IsProd() {
-						star = 1
-					}
 					if star > 0 && deleted == 0 {
 						dateupStr, _ := s.Attr("dateup")
 						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
