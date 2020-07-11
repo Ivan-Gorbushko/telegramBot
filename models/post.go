@@ -12,13 +12,13 @@ const DEADLINE_DUPLICATES = 16 * 60 * 60
 const PAYMENT_TYPE_CASH = "нал."
 const PAYMENT_TYPE_WIRE = "б/н"
 const PAYMENT_TYPE_CARD = "на карту"
-const PAYMENT_TYPE_OTHER = "другое"
+const PAYMENT_TYPE_SOFT = "софт"
 
 var PaymentTypeIds = map[string]string{
 	PAYMENT_TYPE_CASH: "2",
 	PAYMENT_TYPE_WIRE: "4",
 	PAYMENT_TYPE_CARD: "10",
-	PAYMENT_TYPE_OTHER: "14",
+	PAYMENT_TYPE_SOFT: "10",
 }
 
 type Post struct {

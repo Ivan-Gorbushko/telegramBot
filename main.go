@@ -144,8 +144,6 @@ func alarmClock(bot *tgbotapi.BotAPI, chatId int64)  {
 	}
 }
 
-
-
 // Searching new posts and send one to publisher method
 func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProcessedTime int64)  {
 	maxDateup := lastProcessedTime
@@ -192,7 +190,6 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 									newPost.PaymentPrice = string(paymentPriceRes[0][1])
 								}
 
-								newPost.PaymentTypeId = models.PaymentTypeIds[models.PAYMENT_TYPE_OTHER]
 								for needle, paymentTypeId := range models.PaymentTypeIds{
 									paymentTypesReg := regexp.MustCompile(needle)
 									paymentTypesRes := paymentTypesReg.FindAllSubmatch([]byte(newPost.ProductComment), -1)
