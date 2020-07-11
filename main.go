@@ -93,7 +93,7 @@ func main() {
 				case "exit":
 					core.DisconnectMongo()
 					msg.Text = "Noooo you killed me!!! Fucking bastard"
-					bot.Send(msg)
+					_, _ = bot.Send(msg)
 					return
 				case "help":
 					msg.Text = "Ofc you can type:\n 1) /sayhi\n 2) /status\n 3) /start\n 4) /stop\n 5) /exit\n\nBut better leave me alone!"
@@ -112,7 +112,7 @@ func main() {
 						now := time.Now()
 						lastProcessedTime := now.Unix()
 						if !core.Config.IsProd() {
-							lastProcessedTime -= 60 * 60 * 8
+							lastProcessedTime -= 60 * 60 * 15
 						}
 						isWorking = true
 						foundPostsCh := make(chan models.Post)
@@ -173,7 +173,7 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 							if dateup > lastProcessedTime {
 								newPost := models.Post{}
 								newPost.Dateup = dateup
-								// Todo: Todo: Need to refactor this place. Need to use vars for common selectors
+								// Todo: Need to refactor this place. Need to use vars for common selectors
 								newPost.RequestId, _ = s.Find("td.request_level_ms").Attr("request_id")
 								newPost.SourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
 								newPost.DestinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
@@ -191,10 +191,20 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
 
 								productComment := strings.ReplaceAll(newPost.ProductComment, " ", "")
-								paymentPriceReg := regexp.MustCompile(`(\d{3,})`)
+								paymentPriceReg := regexp.MustCompile(`(\d{4,})`)
 								paymentPriceRes := paymentPriceReg.FindAllSubmatch([]byte(productComment), -1)
 								if len(paymentPriceRes)-1 >= 0 {
 									newPost.PaymentPrice = string(paymentPriceRes[0][1])
+								}
+
+								newPost.PaymentTypeId = models.PaymentTypeIds[models.PAYMENT_TYPE_OTHER]
+								for needle, paymentTypeId := range models.PaymentTypeIds{
+									paymentTypesReg := regexp.MustCompile(needle)
+									paymentTypesRes := paymentTypesReg.FindAllSubmatch([]byte(newPost.ProductComment), -1)
+									if len(paymentTypesRes)-1 >= 0 {
+										newPost.PaymentTypeId = paymentTypeId
+										break
+									}
 								}
 
 								// Delete dots
@@ -216,7 +226,7 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 									newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
 								}
 
-								SizeMassReg := regexp.MustCompile(`(\d[,]{0,1}\d*)`)
+								SizeMassReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
 								SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)
 								if len(SizeMassRes)-1 >= 0 {
 									newPost.SizeMassFrom = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
@@ -226,7 +236,7 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[1][1]), ",", ".")
 								}
 
-								SizeVolumeReg := regexp.MustCompile(`(\d[,]{0,1}\d*)`)
+								SizeVolumeReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
 								SizeVolumeRes := SizeVolumeReg.FindAllSubmatch([]byte(newPost.SizeVolume), -1)
 								if len(SizeVolumeRes)-1 >= 0 {
 									newPost.SizeVolumeFrom = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
@@ -301,6 +311,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 		)
 
 		msg := tgbotapi.NewMessage(chatId, formattedMsg)
+		msg.ParseMode = "markdown"
 
 		// Prepare command
 		command := BotCommand{"__create_post", newPost.RequestId}
@@ -353,7 +364,7 @@ func __createPost(requestId string) interface{} {
 	core.DisconnectMongo()
 	log.Println(postData)
 
-	sourceTownName := postData.SourceCity
+	sourceTownName := prepareTownName(postData.SourceCity)
 	sourceAutocompleteTowns := apiRequests.GetAutocompleteTowns(sourceTownName)
 
 	if len(sourceAutocompleteTowns) <= 0 {
@@ -372,7 +383,7 @@ func __createPost(requestId string) interface{} {
 		AreaId: strconv.Itoa(sourceTown.AreaId),
 	}
 
-	targetTownName := postData.DestinationCity
+	targetTownName := prepareTownName(postData.DestinationCity)
 	targetAutocompleteTowns := apiRequests.GetAutocompleteTowns(targetTownName)
 
 	if len(targetAutocompleteTowns) <= 0 {
@@ -392,7 +403,6 @@ func __createPost(requestId string) interface{} {
 	}
 
 	queryData := map[string]string{}
-
 
 	// Search body type
 	for _, bodyType := range apiRequests.GetBodyTypes() {
@@ -417,6 +427,19 @@ func __createPost(requestId string) interface{} {
 	body := apiRequests.PostCargo(waypointListSource, waypointListTarget, postData, queryData)
 
 	return body
+}
+
+func prepareTownName(townName string) string {
+	townNameMapping := map[string] string {
+		"Днипро": "Днепр",
+	}
+
+	for needle, replace := range townNameMapping{
+		reg := regexp.MustCompile(needle)
+		townName = reg.ReplaceAllString(townName, replace)
+	}
+
+	return townName
 }
 
 // Todo: this code need to add when I want to use pager

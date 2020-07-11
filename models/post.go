@@ -9,6 +9,18 @@ import (
 
 const DEADLINE_DUPLICATES = 16 * 60 * 60
 
+const PAYMENT_TYPE_CASH = "нал."
+const PAYMENT_TYPE_WIRE = "б/н"
+const PAYMENT_TYPE_CARD = "на карту"
+const PAYMENT_TYPE_OTHER = "другое"
+
+var PaymentTypeIds = map[string]string{
+	PAYMENT_TYPE_CASH: "2",
+	PAYMENT_TYPE_WIRE: "4",
+	PAYMENT_TYPE_CARD: "10",
+	PAYMENT_TYPE_OTHER: "14",
+}
+
 type Post struct {
 	//ID    				primitive.ObjectID `bson:"_id" json:"id,omitempty"`
 	RequestId           string `bson:"requestId"`
@@ -33,6 +45,7 @@ type Post struct {
 	ProductDescription string `bson:"productDescription"`
 	ProductComment     string `bson:"productComment"`
 	PaymentPrice       string `bson:"productPrice"`
+	PaymentTypeId      string `bson:"paymentTypeId"`
 	Dateup             int64  `bson:"dateup"`
 }
 
