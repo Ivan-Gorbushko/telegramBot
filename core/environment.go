@@ -22,6 +22,7 @@ type Environment struct {
 	LardiSecretKey string
 	ScanTimeout int
 	InitialTime int64
+	UserId string
 }
 
 // init is invoked before main()
@@ -39,6 +40,7 @@ func init() {
 	Config.LardiSecretKey = GetEnvData("lardi_secret_key", "")
 	Config.ScanTimeout, _ = strconv.Atoi(GetEnvData("scan_timeout", "60"))
 	Config.InitialTime, _ = strconv.ParseInt(GetEnvData("initial_time", "0"),10,64)
+	Config.UserId = GetEnvData("user_id", "")
 }
 
 // Simple helper function to read an environment or return a default value
