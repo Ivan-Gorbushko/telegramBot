@@ -43,8 +43,8 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	if post.PaymentTypeId != "" {
 		requestQuery["paymentTypeId"] = post.PaymentTypeId
 	}
-	if core.Config.UserId != "" {
-		requestQuery["contactId"] = core.Config.UserId
+	if core.Config.ContactId != "" {
+		requestQuery["contactId"] = core.Config.ContactId
 	}
 	requestQuery["sizeMassFrom"] = post.SizeMassFrom
 	requestQuery["sizeMassTo"] = post.SizeMassTo
