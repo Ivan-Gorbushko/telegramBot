@@ -9,10 +9,10 @@ import (
 
 const DEADLINE_DUPLICATES = 16 * 60 * 60
 
-const PAYMENT_TYPE_CASH = "нал."
-const PAYMENT_TYPE_WIRE = "б/н"
-const PAYMENT_TYPE_CARD = "на карту"
-const PAYMENT_TYPE_SOFT = "софт"
+const PAYMENT_TYPE_CASH = "Нал."
+const PAYMENT_TYPE_WIRE = "Б/н"
+const PAYMENT_TYPE_CARD = "На карту"
+const PAYMENT_TYPE_SOFT = "Софт"
 
 var PaymentTypeIds = map[string]string{
 	PAYMENT_TYPE_CASH: "2",
@@ -42,7 +42,6 @@ type Post struct {
 	SizeVolumeTo       string `bson:"sizeVolumeTo"`
 	Price              string `bson:"price"`
 	ProductType        string `bson:"productType"`
-	ProductDescription string `bson:"productDescription"`
 	ProductComment     string `bson:"productComment"`
 	PaymentPrice       string `bson:"productPrice"`
 	PaymentTypeId      string `bson:"paymentTypeId"`

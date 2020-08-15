@@ -157,99 +157,117 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 		geziyor.NewGeziyor(&geziyor.Options{
 			StartURLs: []string{pageUrl},
 			ParseFunc: func(g *geziyor.Geziyor, r *client.Response) {
-				r.HTMLDoc.Find("table#msTableWithRequests tbody#request_list_main > tr[dateup]").Each(func(i int, s *goquery.Selection) {
-					deleted := len(s.Find("div.klushka.veshka_deleted").Nodes)
-					star := len(s.Find(".star_and_truck div.pt_1 img").Nodes)
-					if star > 0 && deleted == 0 {
-						dateupStr, _ := s.Attr("dateup")
-						if dateup, err := strconv.ParseInt(dateupStr, 10, 64); err == nil {
-							if dateup > lastProcessedTime {
-								newPost := models.Post{}
-								newPost.Dateup = dateup
-								// Todo: Need to refactor this place. Need to use vars for common selectors
-								newPost.RequestId, _ = s.Find("td.request_level_ms").Attr("request_id")
-								newPost.SourceDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1)").Attr("title")
-								newPost.DestinationDistrict, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2)").Attr("title")
-								newPost.DetailsPageUrl, _ = s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance").Attr("href")
-								newPost.Date = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.multi_date").Text())
-								newPost.SourceCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(1) b").Text())
-								newPost.DestinationCity = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.request_distance span:nth-child(2) b").Text())
-								newPost.Distance = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.m_text a.distance_link").Text())
-								newPost.Truck = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.truck b").Text())
-								newPost.SizeMass = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.weight b").Text())
-								newPost.SizeVolume = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.cube b").Text())
-								newPost.Price = stripTags(s.Find("td.request_level_ms table tr:nth-child(1) td.price").Text())
-								newPost.ProductType = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2) b").Text())
-								newPost.ProductDescription = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td:nth-child(2)>span").Text())
-								newPost.ProductComment = stripTags(s.Find("td.request_level_ms table tr:nth-child(2) td.m_comment").Text())
+				r.HTMLDoc.Find("div#msTableWithRequests div#request_list_main > div[dateup]").Each(func(i int, rc *goquery.Selection) {
 
-								productComment := strings.ReplaceAll(newPost.ProductComment, " ", "")
-								paymentPriceReg := regexp.MustCompile(`(\d{4,})`)
-								paymentPriceRes := paymentPriceReg.FindAllSubmatch([]byte(productComment), -1)
-								if len(paymentPriceRes)-1 >= 0 {
-									newPost.PaymentPrice = string(paymentPriceRes[0][1])
-								}
+					// If it is not star should to skip request
+					star := len(rc.Find("div.is_zirka_img").Nodes)
+					if star <= 0 {
+						return
+					}
 
-								for needle, paymentTypeId := range models.PaymentTypeIds{
-									paymentTypesReg := regexp.MustCompile(needle)
-									paymentTypesRes := paymentTypesReg.FindAllSubmatch([]byte(newPost.ProductComment), -1)
-									if len(paymentTypesRes)-1 >= 0 {
-										newPost.PaymentTypeId = paymentTypeId
-										break
-									}
-								}
+					// If row was deleted should to skip request
+					deleted := len(rc.Find("div.klushka.veshka_deleted").Nodes)
+					if deleted > 0 {
+						return
+					}
 
-								// Delete dots
-								truckReg := regexp.MustCompile(`[.]`)
-								newPost.Truck = truckReg.ReplaceAllString(newPost.Truck,"")
+					// If we can not get dateup should skip request
+					dateupStr, _ := rc.Attr("dateup")
+					fmt.Println(dateupStr)
+					dateup, err := strconv.ParseInt(dateupStr, 10, 64)
+					if err != nil {
+						return
+					}
 
-								dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
-								dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
-								if len(dateRes)-1 >= 0 {
-									dayFrom := string(dateRes[0][1])
-									monthFrom := string(dateRes[0][2])
-									newPost.DateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
-									// by default
-									newPost.DateTo = newPost.DateFrom
-								}
-								if len(dateRes)-1 >= 1 {
-									dayTo := string(dateRes[1][1])
-									monthTo := string(dateRes[1][2])
-									newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
-								}
+					// If it is old request should skip request
+					if dateup <= lastProcessedTime {
+						return
+					}
 
-								SizeMassReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
-								SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)
-								if len(SizeMassRes)-1 >= 0 {
-									newPost.SizeMassFrom = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
-									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
-								}
-								if len(SizeMassRes)-1 >= 1 {
-									newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[1][1]), ",", ".")
-								}
+					newPost := models.Post{}
+					newPost.Dateup = dateup
+					newPost.RequestId, _ = rc.Find("div.request_card").Attr("data-request_id")
+					newPost.Date = stripTags(rc.Find("div.request_card div.request_card_header div.date_add").Text())
+					newPost.Truck = stripTags(rc.Find("div.request_card div.request_card_header div.request_data div.truck_type").Text())
+					newPost.SizeMass = stripTags(rc.Find("div.request_card div.request_card_header div.request_data div.weight").Text())
+					newPost.SizeVolume = stripTags(rc.Find("div.request_card div.request_card_header div.request_data div.cube").Text())
+					newPost.SourceDistrict, _ = rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(1)").Attr("title")
+					newPost.DestinationDistrict, _ = rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(2)").Attr("title")
+					newPost.DetailsPageUrl, _ = rc.Find("div.request_card div.request_card_body a.distance").Attr("href")
+					newPost.SourceCity = stripTags(rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(1) span.locality").Text())
+					newPost.DestinationCity = stripTags(rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(2) span.locality").Text())
+					newPost.Distance = stripTags(rc.Find("div.request_card div.request_card_body a.distance").Text())
+					newPost.Price = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_main").Text())
+					newPost.ProductType = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text span.cargo_type").Text())
+					newPost.PaymentPrice = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_additional").Text())
+					newPost.ProductComment = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_tags").Text())
 
-								SizeVolumeReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
-								SizeVolumeRes := SizeVolumeReg.FindAllSubmatch([]byte(newPost.SizeVolume), -1)
-								if len(SizeVolumeRes)-1 >= 0 {
-									newPost.SizeVolumeFrom = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
-									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
-								}
-								if len(SizeVolumeRes)-1 >= 1 {
-									newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[1][1]), ",", ".")
-								}
+					// Handlers of raw data from HTML
+					paymentPrice := strings.ReplaceAll(newPost.PaymentPrice, " ", "")
+					paymentPriceReg := regexp.MustCompile(`(\d{4,})`)
+					paymentPriceRes := paymentPriceReg.FindAllSubmatch([]byte(paymentPrice), -1)
+					if len(paymentPriceRes)-1 >= 0 {
+						newPost.PaymentPrice = string(paymentPriceRes[0][1])
+					}
 
-								if maxDateup < dateup {
-									maxDateup = dateup
-								}
-
-								count := newPost.GetCountDuplicates()
-								if count == 0 {
-									foundPostsCh <-newPost
-								} else {
-									log.Printf("For %s was found %d copies. There was ignored", newPost.RequestId, count)
-								}
-							}
+					for needle, paymentTypeId := range models.PaymentTypeIds {
+						paymentTypesReg := regexp.MustCompile(needle)
+						paymentTypesRes := paymentTypesReg.FindAllSubmatch([]byte(newPost.ProductComment), -1)
+						if len(paymentTypesRes)-1 >= 0 {
+							newPost.PaymentTypeId = paymentTypeId
+							break
 						}
+					}
+
+					// Delete dots
+					truckReg := regexp.MustCompile(`[.]`)
+					newPost.Truck = truckReg.ReplaceAllString(newPost.Truck,"")
+
+					dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
+					dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
+					if len(dateRes)-1 >= 0 {
+						dayFrom := string(dateRes[0][1])
+						monthFrom := string(dateRes[0][2])
+						newPost.DateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
+						// by default
+						newPost.DateTo = newPost.DateFrom
+					}
+					if len(dateRes)-1 >= 1 {
+						dayTo := string(dateRes[1][1])
+						monthTo := string(dateRes[1][2])
+						newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
+					}
+
+					SizeMassReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
+					SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)
+					if len(SizeMassRes)-1 >= 0 {
+						newPost.SizeMassFrom = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
+						newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[0][1]), ",", ".")
+					}
+					if len(SizeMassRes)-1 >= 1 {
+						newPost.SizeMassTo = strings.ReplaceAll(string(SizeMassRes[1][1]), ",", ".")
+					}
+
+					SizeVolumeReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
+					SizeVolumeRes := SizeVolumeReg.FindAllSubmatch([]byte(newPost.SizeVolume), -1)
+					if len(SizeVolumeRes)-1 >= 0 {
+						newPost.SizeVolumeFrom = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
+						newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[0][1]), ",", ".")
+					}
+					if len(SizeVolumeRes)-1 >= 1 {
+						newPost.SizeVolumeTo = strings.ReplaceAll(string(SizeVolumeRes[1][1]), ",", ".")
+					}
+
+					if maxDateup < dateup {
+						maxDateup = dateup
+					}
+
+					fmt.Println(newPost)
+					count := newPost.GetCountDuplicates()
+					if count == 0 {
+						foundPostsCh <-newPost
+					} else {
+						log.Printf("For %s was found %d copies. There was ignored", newPost.RequestId, count)
 					}
 				})
 			},
@@ -273,7 +291,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 		formattedMsg := fmt.Sprintf(
 			"\n" +
 			"%s *%s*(%s) -> *%s*(%s) - %s\n" +
-			"*%s* %s\n" +
+			"*%s*\n" +
 			"*%s* *%s* *%s*\n" +
 			"*%s*\n" +
 			"Price: %s\n" +
@@ -287,7 +305,6 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			newPost.Distance,
 			// The new row
 			newPost.ProductType,
-			newPost.ProductDescription,
 			// The new row
 			newPost.SizeMass,
 			newPost.SizeVolume,
