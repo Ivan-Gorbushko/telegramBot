@@ -50,7 +50,7 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	requestQuery["sizeMassTo"] = post.SizeMassTo
 	requestQuery["sizeVolumeFrom"] = post.SizeVolumeFrom
 	requestQuery["sizeVolumeTo"] = post.SizeVolumeTo
-	requestQuery["paymentPrice"] = post.PaymentPrice
+	requestQuery["paymentPrice"] = post.ProductPrice
 	requestQuery["dateFrom"] = post.DateFrom // "2020-11-27"
 	requestQuery["dateTo"] = post.DateTo // "2020-11-27"
 	// Prepare Body Parameters
