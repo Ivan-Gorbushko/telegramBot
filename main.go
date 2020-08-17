@@ -304,7 +304,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			"*%s*\n" +
 			"*%s* *%s* *%s*\n" +
 			"*%s*\n" +
-			"Price: *%s* (%s)\n" +
+			"Price: *%s* %s\n" +
 			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"----------------------------------\n",
 			newPost.Date,
