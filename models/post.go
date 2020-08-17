@@ -43,7 +43,7 @@ type Post struct {
 	Price              string `bson:"price"`
 	ProductType        string `bson:"productType"`
 	ProductComment     string `bson:"productComment"`
-	PaymentPrice       string `bson:"productPrice"`
+	ProductPrice       string `bson:"productPrice"`
 	PaymentTypeId      string `bson:"paymentTypeId"`
 	Dateup             int64  `bson:"dateup"`
 }

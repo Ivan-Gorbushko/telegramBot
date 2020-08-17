@@ -199,15 +199,15 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 					newPost.Distance = stripTags(rc.Find("div.request_card div.request_card_body a.distance").Text())
 					newPost.Price = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_main").Text())
 					newPost.ProductType = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text span.cargo_type").Text())
-					newPost.PaymentPrice = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_additional").Text())
+					newPost.ProductPrice = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_additional").Text())
 					newPost.ProductComment = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_tags").Text())
 
 					// Handlers of raw data from HTML
-					paymentPrice := strings.ReplaceAll(newPost.PaymentPrice, " ", "")
-					paymentPriceReg := regexp.MustCompile(`(\d{4,})`)
-					paymentPriceRes := paymentPriceReg.FindAllSubmatch([]byte(paymentPrice), -1)
-					if len(paymentPriceRes)-1 >= 0 {
-						newPost.PaymentPrice = string(paymentPriceRes[0][1])
+					productPrice := strings.ReplaceAll(newPost.ProductPrice, " ", "")
+					productPriceReg := regexp.MustCompile(`(\d{4,})`)
+					productPriceRes := productPriceReg.FindAllSubmatch([]byte(productPrice), -1)
+					if len(productPriceRes)-1 >= 0 {
+						newPost.ProductPrice = string(productPriceRes[0][1])
 					}
 
 					for needle, paymentTypeId := range models.PaymentTypeIds {
@@ -284,8 +284,18 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			return
 		}
 
+		var productPrice, price string
+
 		newPost.Save()
-		//log.Printf("New post was created in mongodb posts: id %s", newPost.ID)
+		log.Printf("New post was created in mongodb posts: id %s", newPost.RequestId)
+
+		if newPost.ProductPrice != "" {
+			productPrice = fmt.Sprintf("%s грн.", newPost.ProductPrice)
+		}
+
+		if newPost.Price != "" {
+			price = fmt.Sprintf("(%s)", newPost.Price)
+		}
 
 		// Todo: Need to update. Try to find and use some template to create and format msg
 		formattedMsg := fmt.Sprintf(
@@ -294,7 +304,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			"*%s*\n" +
 			"*%s* *%s* *%s*\n" +
 			"*%s*\n" +
-			"Price: %s\n" +
+			"Price: *%s* (%s)\n" +
 			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"----------------------------------\n",
 			newPost.Date,
@@ -312,7 +322,8 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			// The new row
 			newPost.ProductComment,
 			// The new row
-			newPost.Price,
+			productPrice,
+			price,
 			// The new row
 			newPost.RequestId,
 			newPost.Dateup,
