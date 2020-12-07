@@ -187,19 +187,20 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 					newPost := models.Post{}
 					newPost.Dateup = dateup
 					newPost.RequestId, _ = rc.Find("div.request_card").Attr("data-request_id")
-					newPost.Date = stripTags(rc.Find("div.request_card div.request_card_header div.date_add").Text())
-					newPost.Truck = stripTags(rc.Find("div.request_card div.request_card_header div.request_data div.truck_type").Text())
-					newPost.SizeMass = stripTags(rc.Find("div.request_card div.request_card_header div.request_data div.weight").Text())
-					newPost.SizeVolume = stripTags(rc.Find("div.request_card div.request_card_header div.request_data div.cube").Text())
+					newPost.Date = stripTags(rc.Find("div.request_card div.request_card_header_left div.date_add").Text())
+					newPost.Truck = stripTags(rc.Find("div.request_card div.request_card_header_left div.request_data div.truck_type").Text())
+					newPost.SizeMass = stripTags(rc.Find("div.request_card div.request_card_header_left div.request_data div.weight").Text())
+					newPost.SizeVolume = stripTags(rc.Find("div.request_card div.request_card_header_left div.request_data div.cube").Text())
 					newPost.SourceDistrict, _ = rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(1)").Attr("title")
 					newPost.DestinationDistrict, _ = rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(2)").Attr("title")
 					newPost.DetailsPageUrl, _ = rc.Find("div.request_card div.request_card_body a.distance").Attr("href")
 					newPost.SourceCity = stripTags(rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(1) span.locality").Text())
 					newPost.DestinationCity = stripTags(rc.Find("div.request_card div.request_card_body a.request_distance span:nth-child(2) span.locality").Text())
 					newPost.Distance = stripTags(rc.Find("div.request_card div.request_card_body a.distance").Text())
-					newPost.Price = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_main").Text())
+					newPost.Price = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_additional").Text())
 					newPost.ProductType = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text span.cargo_type").Text())
-					newPost.ProductPrice = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_additional").Text())
+					newPost.ProductPrice = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_main").Text())
+					newPost.PriceTags = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_tags").Text())
 					newPost.ProductComment = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_tags").Text())
 
 					// Handlers of raw data from HTML
@@ -212,7 +213,7 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 
 					for needle, paymentTypeId := range models.PaymentTypeIds {
 						paymentTypesReg := regexp.MustCompile(needle)
-						paymentTypesRes := paymentTypesReg.FindAllSubmatch([]byte(newPost.ProductComment), -1)
+						paymentTypesRes := paymentTypesReg.FindAllSubmatch([]byte(newPost.PriceTags), -1)
 						if len(paymentTypesRes)-1 >= 0 {
 							newPost.PaymentTypeId = paymentTypeId
 							break

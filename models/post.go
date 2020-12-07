@@ -44,6 +44,7 @@ type Post struct {
 	ProductType        string `bson:"productType"`
 	ProductComment     string `bson:"productComment"`
 	ProductPrice       string `bson:"productPrice"`
+	PriceTags          string `bson:"priceTags"`
 	PaymentTypeId      string `bson:"paymentTypeId"`
 	Dateup             int64  `bson:"dateup"`
 }
