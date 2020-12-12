@@ -204,6 +204,7 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 					newPost.ProductComment = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_tags").Text())
 					newPost.Values = make(map[string]string)
 
+					// Parser for values into div.request_text block. Get dimensions of cargo and other options
 					var fullText string
 					fullText, _ = rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text").Html()
 					rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text span.value").Each(func(i int, value *goquery.Selection) {
@@ -299,7 +300,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			return
 		}
 
-		var productPrice, price string
+		var productPrice, price, values string
 
 		newPost.Save()
 		log.Printf("New post was created in mongodb posts: id %s", newPost.RequestId)
@@ -312,6 +313,15 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			price = fmt.Sprintf("(%s)", newPost.Price)
 		}
 
+
+		if len(newPost.Values)-1 >= 0 {
+			for name, value := range newPost.Values {
+				values = values + fmt.Sprintf("| %s = %s | ", name, value)
+			}
+		} else {
+			values = "-"
+		}
+
 		// Todo: Need to update. Try to find and use some template to create and format msg
 		formattedMsg := fmt.Sprintf(
 			"\n" +
@@ -320,6 +330,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			"*%s* *%s* *%s*\n" +
 			"*%s*\n" +
 			"Price: *%s* %s\n" +
+			"Values: *%s*\n" +
 			"[RequestId#: %s (timestamp: %d)](https://della.ua%s)\n" +
 			"----------------------------------\n",
 			newPost.Date,
@@ -339,6 +350,8 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 			// The new row
 			productPrice,
 			price,
+			// The new row
+			values,
 			// The new row
 			newPost.RequestId,
 			newPost.Dateup,
