@@ -202,6 +202,20 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 					newPost.ProductPrice = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_main").Text())
 					newPost.PriceTags = stripTags(rc.Find("div.request_card div.request_card_body div.request_price_block div.price_tags").Text())
 					newPost.ProductComment = stripTags(rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_tags").Text())
+					newPost.Values = make(map[string]string)
+
+					var fullText string
+					fullText, _ = rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text").Html()
+					rc.Find("div.request_card div.request_card_body div.request_text_n_tags div.request_text span.value").Each(func(i int, value *goquery.Selection) {
+						valueNameReg := regexp.MustCompile(`<\/span>([^span]+)<span class="value">`+value.Text()+`<\/span>`)
+						valueNameRes := valueNameReg.FindAllSubmatch([]byte(fullText), -1)
+						if len(valueNameRes)-1 >= 0 {
+							valueName := stripValueName(string(valueNameRes[0][1]))
+							newPost.Values[valueName] = value.Text()
+							// and we should delete this from main row (fullText)
+							fullText = strings.Replace(fullText, string(valueNameRes[0][1]), "", -1)
+						}
+					})
 
 					// Handlers of raw data from HTML
 					productPrice := strings.ReplaceAll(newPost.ProductPrice, " ", "")
@@ -364,6 +378,14 @@ func stripTags(content string) string {
 	fixSpaces := regexp.MustCompile(`&nbsp;`)
 	plainTex = stripTagsReg.ReplaceAllString(plainTex," ")
 	plainTex = fixSpaces.ReplaceAllString(plainTex," ")
+	plainTex = strings.Join(strings.Fields(plainTex), " ")
+	return plainTex
+}
+
+func stripValueName(content string) string {
+	plainTex := content
+	stripTagsReg := regexp.MustCompile(`([=:()]|\n|\s)*`)
+	plainTex = stripTagsReg.ReplaceAllString(plainTex,"")
 	plainTex = strings.Join(strings.Fields(plainTex), " ")
 	return plainTex
 }

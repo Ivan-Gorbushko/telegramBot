@@ -47,6 +47,7 @@ type Post struct {
 	PriceTags          string `bson:"priceTags"`
 	PaymentTypeId      string `bson:"paymentTypeId"`
 	Dateup             int64  `bson:"dateup"`
+	Values             map[string]string `bson:"values"`
 }
 
 func (p *Post) GetCountDuplicates() int64 {
