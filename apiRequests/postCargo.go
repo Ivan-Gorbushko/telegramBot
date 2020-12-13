@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"main/core"
 	"main/models"
+	"regexp"
+	"strings"
 )
 
 // Response model
@@ -53,6 +55,17 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	requestQuery["paymentPrice"] = post.ProductPrice
 	requestQuery["dateFrom"] = post.DateFrom // "2020-11-27"
 	requestQuery["dateTo"] = post.DateTo // "2020-11-27"
+
+	for valuesField, valuesValue := range post.Values {
+		if apiField, exists := models.PostValuesSizeOnApiFields[valuesField]; exists {
+			valuesValueReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
+			valuesValueRes := valuesValueReg.FindAllSubmatch([]byte(valuesValue), -1)
+			if len(valuesValueRes)-1 >= 0 {
+				requestQuery[apiField] = strings.ReplaceAll(string(valuesValueRes[0][1]), ",", ".")
+			}
+		}
+	}
+
 	// Prepare Body Parameters
 	requestBody := CreatePostRequest{
 		WaypointListSource: []WaypointListSource{
