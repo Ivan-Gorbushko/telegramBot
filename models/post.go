@@ -21,6 +21,16 @@ var PaymentTypeIds = map[string]string{
 	PAYMENT_TYPE_SOFT: "10",
 }
 
+const POST_FIELD_VALUES_SIZE_LENGTH = "длн"
+const POST_FIELD_VALUES_SIZE_WIDTH  = "шир"
+const POST_FIELD_VALUES_SIZE_HEIGHT = "выс"
+
+var PostValuesSizeOnApiFields = map[string]string{
+	POST_FIELD_VALUES_SIZE_LENGTH: "sizeLength",
+	POST_FIELD_VALUES_SIZE_WIDTH:  "sizeWidth",
+	POST_FIELD_VALUES_SIZE_HEIGHT: "sizeHeight",
+}
+
 type Post struct {
 	//ID    				primitive.ObjectID `bson:"_id" json:"id,omitempty"`
 	RequestId           string `bson:"requestId"`
