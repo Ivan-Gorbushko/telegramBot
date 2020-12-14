@@ -21,14 +21,31 @@ import (
 
 var isWorking bool
 
-type BotCommand struct {
+type BotInlineCommand struct {
 	Method string
-	Arg string
+	RequestId string
 }
 
 // Register all inline keyboard commands
-var RegisteredCommands = map[string]interface{}{
+var RegisteredInlineCommands = map[string]interface{}{
 	"__create_post": __createPost,
+}
+
+type BotSimpleCommand struct {
+	Method string
+	Bot *tgbotapi.BotAPI
+	Update tgbotapi.Update
+	Msg *tgbotapi.MessageConfig
+}
+
+// Register all simple chat commands (SCommand - simple command)
+var RegisteredSimpleCommands = map[string]interface{}{
+	"stop": stopSCommand,
+	"exit": exitSCommand,
+	"help": helpSCommand,
+	"sayhi": sayhiSCommand,
+	"status": statusSCommand,
+	"start": startSCommand,
 }
 
 func main() {
@@ -64,12 +81,12 @@ func main() {
 	for update := range updates {
 		// Inline keyboard handler
 		if update.CallbackQuery != nil {
-			var command BotCommand
-			err := json.Unmarshal([]byte(update.CallbackQuery.Data), &command)
+			var commandInline BotInlineCommand
+			err := json.Unmarshal([]byte(update.CallbackQuery.Data), &commandInline)
 			if err != nil {
 				log.Println(err)
 			}
-			command.runCommand()
+			commandInline.runCommand()
 		}
 
 		// Ignore any non-Message Updates
@@ -79,56 +96,71 @@ func main() {
 
 		// Command handler
 		if update.Message.IsCommand() {
+			// Create and set by default text for command answer
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-			// Todo: Need to refactor this spaghetti code
-			switch update.Message.Command() {
-				case "stop":
-					if isWorking {
-						isWorking = false
-						core.DisconnectMongo()
-						msg.Text = "Fuh! Is it finally over..."
-					} else {
-						msg.Text = "You are silly I already don't work. And don't even think about running me!"
-					}
-				case "exit":
-					core.DisconnectMongo()
-					msg.Text = "Noooo you killed me!!! Fucking bastard"
-					_, _ = bot.Send(msg)
-					return
-				case "help":
-					msg.Text = "Ofc you can type:\n 1) /sayhi\n 2) /status\n 3) /start\n 4) /stop\n 5) /exit\n\nBut better leave me alone!"
-				case "sayhi":
-					msg.Text = "Hi bro:)"
-				case "status":
-					if isWorking {
-						msg.Text = "I'm working and I'm so busy to answer you"
-					} else {
-						msg.Text = "I do nothing but this is not a reason to work"
-					}
-				case "start":
-					if isWorking {
-						msg.Text = "I'm is already scanning! Don't touch me bad boy!"
-					} else {
-						now := time.Now()
-						lastProcessedTime := now.Unix()
-						lastProcessedTime += core.Config.InitialTime
-						isWorking = true
-						foundPostsCh := make(chan models.Post)
-						pageUrl := "https://della.ua/search/a204bd204eflolh0ilk0m1.html"
+			msg.Text = "If you're so stupid, it's better to ask someone smarter. For example me /help"
 
-						go startPostScanning(foundPostsCh, pageUrl, lastProcessedTime)
-						go startBotPublisher(foundPostsCh, bot, update.Message.Chat.ID)
-						go alarmClock(bot, update.Message.Chat.ID)
+			// Prepare simple command and execute
+			commandSimple := BotSimpleCommand{update.Message.Command(), bot, update, &msg}
+			commandSimple.runCommand()
 
-						msg.Text = "Crap! Job again!((( Start scanning..."
-					}
-				default:
-					msg.Text = "If you're so stupid, it's better to ask someone smarter. For example me /help"
-			}
 			log.Printf("The %s command was executed successful", update.Message.Command())
 			_, _ = bot.Send(msg)
 		}
 
+	}
+}
+
+func stopSCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig)  {
+	if isWorking {
+		isWorking = false
+		core.DisconnectMongo()
+		msg.Text = "Fuh! Is it finally over..."
+	} else {
+		msg.Text = "You are silly I already don't work. And don't even think about running me!"
+	}
+}
+
+func exitSCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig) {
+	core.DisconnectMongo()
+	msg.Text = "Noooo you killed me!!! Fucking bastard"
+	_, _ = bot.Send(msg)
+	// Exit successfully
+	os.Exit(0)
+}
+
+func helpSCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig)  {
+	msg.Text = "Ofc you can type:\n 1) /sayhi\n 2) /status\n 3) /start\n 4) /stop\n 5) /exit\n\nBut better leave me alone!"
+}
+
+func sayhiSCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig)  {
+	msg.Text = "Hi bro:)"
+}
+
+func statusSCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig)  {
+	if isWorking {
+		msg.Text = "I'm working and I'm so busy to answer you"
+	} else {
+		msg.Text = "I do nothing but this is not a reason to work"
+	}
+}
+
+func startSCommand(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig)  {
+	if isWorking {
+		msg.Text = "I'm is already scanning! Don't touch me bad boy!"
+	} else {
+		now := time.Now()
+		lastProcessedTime := now.Unix()
+		lastProcessedTime += core.Config.InitialTime
+		isWorking = true
+		foundPostsCh := make(chan models.Post)
+		pageUrl := "https://della.ua/search/a204bd204eflolh0ilk0m1.html"
+
+		go startPostScanning(foundPostsCh, pageUrl, lastProcessedTime)
+		go startBotPublisher(foundPostsCh, bot, update.Message.Chat.ID)
+		go alarmClock(bot, update.Message.Chat.ID)
+
+		msg.Text = "Crap! Job again!((( Start scanning..."
 	}
 }
 
@@ -362,7 +394,7 @@ func startBotPublisher(foundPostsCh <-chan models.Post, bot *tgbotapi.BotAPI, ch
 		msg.ParseMode = "markdown"
 
 		// Prepare command
-		command := BotCommand{"__create_post", newPost.RequestId}
+		command := BotInlineCommand{"__create_post", newPost.RequestId}
 		serializedCommand, err := json.Marshal(command)
 		//log.Println(fmt.Sprintf("%s", string(serializedCommand)))
 		if err != nil {
@@ -408,8 +440,18 @@ func MainHandler(resp http.ResponseWriter, _ *http.Request) {
 	_, _ = resp.Write([]byte("Hi all! I'm Telegram CargoBot on Heroku"))
 }
 
-func (command BotCommand) runCommand() interface{} {
-	return RegisteredCommands[command.Method].(func(string) interface{})(command.Arg)
+func (command BotInlineCommand) runCommand() interface{} {
+	if commandCallback, exist := RegisteredInlineCommands[command.Method]; exist {
+		return commandCallback.(func(string) interface{})(command.RequestId)
+	}
+
+	return nil
+}
+
+func (command BotSimpleCommand) runCommand() {
+	if commandCallback, exist := RegisteredSimpleCommands[command.Method]; exist {
+		commandCallback.(func(*tgbotapi.BotAPI, tgbotapi.Update, *tgbotapi.MessageConfig))(command.Bot, command.Update, command.Msg)
+	}
 }
 
 // Make request to lardi-trans.com to create new post
