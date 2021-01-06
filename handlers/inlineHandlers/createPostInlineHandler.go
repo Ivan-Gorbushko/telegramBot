@@ -96,3 +96,4 @@ func prepareTownName(townName string) string {
 
 	return townName
 }
+

@@ -44,7 +44,6 @@ func Post(endpointUrl string, requestQuery map[string]string, requestBody interf
 	//fmt.Println("response Body:", string(body))
 }
 
-
 func Get(endpointUrl string, requestQuery map[string]string, requestHeader map[string]string) []byte {
 	// Prepare Query Parameters
 	params := url.Values{}

@@ -289,7 +289,6 @@ func alarmClock(bot *tgbotapi.BotAPI, chatId int64)  {
 	}
 }
 
-
 // strip tags and spaces from HTML
 func stripTags(content string) string {
 	plainTex := content
