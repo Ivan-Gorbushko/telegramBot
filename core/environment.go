@@ -11,6 +11,8 @@ import (
 const ENV_PROD = "prod"
 const ENV_DEV = "dev"
 
+var IsWorking bool = false
+
 var Config Environment
 
 type Environment struct {
