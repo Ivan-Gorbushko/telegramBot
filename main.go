@@ -244,14 +244,16 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 					if len(dateRes)-1 >= 0 {
 						dayFrom := string(dateRes[0][1])
 						monthFrom := string(dateRes[0][2])
-						newPost.DateFrom = fmt.Sprintf("2020-%s-%s", monthFrom, dayFrom)
+						// TODO: hard code with date 2020 need to rework and get data from post created_at
+						newPost.DateFrom = fmt.Sprintf("2021-%s-%s", monthFrom, dayFrom)
 						// by default
 						newPost.DateTo = newPost.DateFrom
 					}
 					if len(dateRes)-1 >= 1 {
 						dayTo := string(dateRes[1][1])
 						monthTo := string(dateRes[1][2])
-						newPost.DateTo = fmt.Sprintf("2020-%s-%s", monthTo, dayTo)
+						// TODO: hard code with date 2020 need to rework and get data from post created_at
+						newPost.DateTo = fmt.Sprintf("2021-%s-%s", monthTo, dayTo)
 					}
 
 					SizeMassReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
