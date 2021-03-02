@@ -8,7 +8,7 @@ import (
 
 func ExitSimpleHandler(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbotapi.MessageConfig) {
 	core.DisconnectMongo()
-	msg.Text = "Noooo you killed me!!! Fucking bastard"
+	msg.Text = "Noooo you killed me!!!"
 	_, _ = bot.Send(msg)
 	// Exit successfully
 	os.Exit(0)

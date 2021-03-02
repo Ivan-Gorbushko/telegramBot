@@ -17,7 +17,7 @@ type AutocompleteTown struct {
 	//Lat float32 `json:"lat"`
 }
 
-func GetAutocompleteTowns(query string) []AutocompleteTown {
+func GetAutocompleteTowns(query string, district string) []AutocompleteTown {
 	// Settings
 	var autocompleteTowns []AutocompleteTown
 	country := "UA"
@@ -31,6 +31,20 @@ func GetAutocompleteTowns(query string) []AutocompleteTown {
 	body := core.Get(endpointUrl, requestQuery, requestHeader)
 	// Decode
 	_ = json.Unmarshal([]byte(body), &autocompleteTowns)
-	fmt.Println(autocompleteTowns)
-	return autocompleteTowns
+
+	var filteredAutocompleteTowns []AutocompleteTown
+	for _, autocompleteTown := range autocompleteTowns {
+		if autocompleteTown.AreaName == district {
+			filteredAutocompleteTowns = append(filteredAutocompleteTowns, autocompleteTown)
+		}
+	}
+
+	// If we do not have any matches for the name of the area
+	if len(filteredAutocompleteTowns) <= 0 {
+		fmt.Println(autocompleteTowns)
+		return autocompleteTowns
+	}
+
+	fmt.Println(filteredAutocompleteTowns)
+	return filteredAutocompleteTowns
 }
