@@ -20,7 +20,7 @@ func CreatePostInlineHandler(requestId string) interface{} {
 	log.Println(postData)
 
 	sourceTownName := prepareTownName(postData.SourceCity)
-	sourceAutocompleteTowns := apiRequests.GetAutocompleteTowns(sourceTownName)
+	sourceAutocompleteTowns := apiRequests.GetAutocompleteTowns(sourceTownName, postData.SourceDistrict)
 
 	if len(sourceAutocompleteTowns) <= 0 {
 		log.Println(fmt.Sprintf("Bad naming of the city (%s). Request was skipped", sourceTownName))
@@ -39,7 +39,7 @@ func CreatePostInlineHandler(requestId string) interface{} {
 	}
 
 	targetTownName := prepareTownName(postData.DestinationCity)
-	targetAutocompleteTowns := apiRequests.GetAutocompleteTowns(targetTownName)
+	targetAutocompleteTowns := apiRequests.GetAutocompleteTowns(targetTownName, postData.DestinationDistrict)
 
 	if len(targetAutocompleteTowns) <= 0 {
 		log.Println(fmt.Sprintf("Bad naming of the city (%s). Request was skipped", targetTownName))

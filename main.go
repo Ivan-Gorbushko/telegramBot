@@ -80,7 +80,7 @@ func main() {
 		if update.Message.IsCommand() {
 			// Create and set by default text for command answer
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-			msg.Text = "If you're so stupid, it's better to ask someone smarter. For example me /help"
+			msg.Text = "You can try /help te get more information"
 
 			// Prepare simple command and execute
 			commandSimple := core.BotSimpleCommand{update.Message.Command(), bot, update, &msg}
