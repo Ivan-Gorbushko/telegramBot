@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"main/core"
+	"strings"
 )
 
 // Response model
@@ -34,7 +35,7 @@ func GetAutocompleteTowns(query string, district string) []AutocompleteTown {
 
 	var filteredAutocompleteTowns []AutocompleteTown
 	for _, autocompleteTown := range autocompleteTowns {
-		if autocompleteTown.AreaName == district {
+		if strings.Contains(autocompleteTown.AreaName, district) && autocompleteTown.Name == query {
 			filteredAutocompleteTowns = append(filteredAutocompleteTowns, autocompleteTown)
 		}
 	}
