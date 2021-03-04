@@ -35,7 +35,7 @@ func GetAutocompleteTowns(query string, district string) []AutocompleteTown {
 
 	var filteredAutocompleteTowns []AutocompleteTown
 	for _, autocompleteTown := range autocompleteTowns {
-		if strings.Contains(autocompleteTown.AreaName, district) && autocompleteTown.Name == query {
+		if strings.Contains(district, autocompleteTown.AreaName) && autocompleteTown.Name == query {
 			filteredAutocompleteTowns = append(filteredAutocompleteTowns, autocompleteTown)
 		}
 	}
