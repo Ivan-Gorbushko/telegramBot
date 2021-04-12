@@ -25,9 +25,8 @@ func StartSimpleHandler(bot *tgbotapi.BotAPI, update tgbotapi.Update, msg *tgbot
 		lastProcessedTime += core.Config.InitialTime
 		core.IsWorking = true
 		foundPostsCh := make(chan models.Post)
-		pageUrl := "https://della.ua/search/a204bd204eflolh0ilk0m1.html"
 
-		go startPostScanning(foundPostsCh, pageUrl, lastProcessedTime)
+		go startPostScanning(foundPostsCh, core.Config.FilterPageUrl, lastProcessedTime)
 		go startBotPublisher(foundPostsCh, bot, update.Message.Chat.ID)
 		go alarmClock(bot, update.Message.Chat.ID)
 
