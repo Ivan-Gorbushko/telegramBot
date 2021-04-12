@@ -45,7 +45,14 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 		}
 
 		geziyor.NewGeziyor(&geziyor.Options{
-			StartURLs: []string{pageUrl},
+			CookiesDisabled: false,
+			UserAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36",
+			RequestDelay: 1,
+			RequestDelayRandomize: true,
+			StartRequestsFunc: func(g *geziyor.Geziyor) {
+				// Render page to run js otherwise we will get 403 error
+				g.GetRendered(pageUrl, g.Opt.ParseFunc)
+			},
 			ParseFunc: func(g *geziyor.Geziyor, r *client.Response) {
 				r.HTMLDoc.Find("div#msTableWithRequests div#request_list_main > div[dateup]").Each(func(i int, rc *goquery.Selection) {
 
