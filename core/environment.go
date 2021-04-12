@@ -25,6 +25,7 @@ type Environment struct {
 	ScanTimeout int
 	InitialTime int64
 	ContactId string
+	FilterPageUrl string
 }
 
 // init is invoked before main()
@@ -43,6 +44,7 @@ func init() {
 	Config.ScanTimeout, _ = strconv.Atoi(GetEnvData("scan_timeout", "60"))
 	Config.InitialTime, _ = strconv.ParseInt(GetEnvData("initial_time", "0"),10,64)
 	Config.ContactId = GetEnvData("contact_id", "")
+	Config.FilterPageUrl = GetEnvData("filter_page_url", "")
 }
 
 // Simple helper function to read an environment or return a default value
