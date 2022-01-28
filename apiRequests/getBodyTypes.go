@@ -19,7 +19,7 @@ func GetBodyTypes() []BodyType {
 	requestHeader := map[string]string{}
 	baseUrl := core.Config.LardiApiUrl
 	lardiSecretKey := core.Config.LardiSecretKey
-	endpointUrl := fmt.Sprintf("%s/v2/references/body/types", baseUrl)
+	endpointUrl := fmt.Sprintf("%s/v1/references/body/types", baseUrl)
 	// Prepare Headers
 	requestHeader["Authorization"] = lardiSecretKey
 	// Request

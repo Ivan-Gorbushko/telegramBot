@@ -19,7 +19,7 @@ func GetBodyGroups() []BodyGroup {
 	requestHeader := map[string]string{}
 	baseUrl := core.Config.LardiApiUrl
 	lardiSecretKey := core.Config.LardiSecretKey
-	endpointUrl := fmt.Sprintf("%s/v2/references/body/groups", baseUrl)
+	endpointUrl := fmt.Sprintf("%s/v1/references/body/groups", baseUrl)
 	// Prepare Headers
 	requestHeader["Authorization"] = lardiSecretKey
 	// Request

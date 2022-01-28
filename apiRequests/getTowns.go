@@ -24,7 +24,7 @@ func GetTowns(autocompleteTown AutocompleteTown) []City {
 	requestHeader := map[string]string{}
 	baseUrl := core.Config.LardiApiUrl
 	lardiSecretKey := core.Config.LardiSecretKey
-	endpointUrl := fmt.Sprintf("%s/v2/references/towns", baseUrl)
+	endpointUrl := fmt.Sprintf("%s/v1/references/towns", baseUrl)
 	// Prepare Query Parameters
 	requestQuery["ids"] = strconv.Itoa(autocompleteTown.Id)
 	// Prepare Headers

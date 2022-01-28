@@ -40,7 +40,7 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	requestHeader := map[string]string{}
 	baseUrl := core.Config.LardiApiUrl
 	lardiSecretKey := core.Config.LardiSecretKey
-	endpointUrl := fmt.Sprintf("%s/v2/proposals/my/add/cargo", baseUrl)
+	endpointUrl := fmt.Sprintf("%s/v1/proposals/my/add/cargo", baseUrl)
 	// Prepare Query Parameters
 	if post.PaymentTypeId != "" {
 		requestQuery["paymentTypeId"] = post.PaymentTypeId
