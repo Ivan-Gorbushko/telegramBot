@@ -136,22 +136,29 @@ func startPostScanning(foundPostsCh chan<- models.Post, pageUrl string, lastProc
 					truckReg := regexp.MustCompile(`[.]`)
 					newPost.Truck = truckReg.ReplaceAllString(newPost.Truck,"")
 
+					var dateFrom, dateTo string
 					dateReg := regexp.MustCompile(`(\d{2})\.(\d{2})`)
 					dateRes := dateReg.FindAllSubmatch([]byte(newPost.Date), -1)
 					if len(dateRes)-1 >= 0 {
 						dayFrom := string(dateRes[0][1])
 						monthFrom := string(dateRes[0][2])
 						// TODO: need to rework hard code year
-						newPost.DateFrom = fmt.Sprintf("2021-%s-%s", monthFrom, dayFrom)
+						//newPost.DateFrom = fmt.Sprintf("2021-%s-%s", monthFrom, dayFrom)
+						dateFrom = fmt.Sprintf("2021-%s-%s", monthFrom, dayFrom)
 						// by default
-						newPost.DateTo = newPost.DateFrom
+						dateTo = dateFrom
 					}
 					if len(dateRes)-1 >= 1 {
 						dayTo := string(dateRes[1][1])
 						monthTo := string(dateRes[1][2])
 						// TODO: need to rework hard code year
-						newPost.DateTo = fmt.Sprintf("2021-%s-%s", monthTo, dayTo)
+						dateTo = fmt.Sprintf("2021-%s-%s", monthTo, dayTo)
 					}
+					dateLayout := "2006-01-02"
+					dateFromTimestamp, _ := time.Parse(dateLayout, dateFrom) // "2021-11-27"
+					DateToTimestamp, _ := time.Parse(dateLayout, dateTo) // "2021-11-27"
+					newPost.DateFrom = dateFromTimestamp.Unix()
+					newPost.DateTo = DateToTimestamp.Unix()
 
 					SizeMassReg := regexp.MustCompile(`(\d+[,]{0,1}\d*)`)
 					SizeMassRes := SizeMassReg.FindAllSubmatch([]byte(newPost.SizeMass), -1)

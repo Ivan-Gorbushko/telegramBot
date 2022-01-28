@@ -35,8 +35,8 @@ type Post struct {
 	//ID    				primitive.ObjectID `bson:"_id" json:"id,omitempty"`
 	RequestId           string `bson:"requestId"`
 	Date                string `bson:"date"`
-	DateFrom            string `bson:"dateFrom"`
-	DateTo              string `bson:"dateTo"`
+	DateFrom            int64 `bson:"dateFrom"`
+	DateTo              int64 `bson:"dateTo"`
 	DetailsPageUrl      string `bson:"detailsPageUrl"`
 	SourceDistrict      string `bson:"sourceDistrict"`
 	SourceCity          string `bson:"sourceCity"`

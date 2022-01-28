@@ -6,6 +6,7 @@ import (
 	"main/core"
 	"main/models"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -53,8 +54,8 @@ func PostCargo(waypointListSource WaypointListSource, waypointListTarget Waypoin
 	requestQuery["sizeVolumeFrom"] = post.SizeVolumeFrom
 	requestQuery["sizeVolumeTo"] = post.SizeVolumeTo
 	requestQuery["paymentPrice"] = post.ProductPrice
-	requestQuery["dateFrom"] = post.DateFrom // "2021-11-27"
-	requestQuery["dateTo"] = post.DateTo // "2021-11-27"
+	requestQuery["dateFrom"] = strconv.FormatInt(post.DateFrom, 10) // "2021-11-27"
+	requestQuery["dateTo"] = strconv.FormatInt(post.DateTo, 10) // "2021-11-27"
 
 	for valuesField, valuesValue := range post.Values {
 		if apiField, exists := models.PostValuesSizeOnApiFields[valuesField]; exists {
